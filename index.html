@@ -138,7 +138,7 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
     <button data-v="semana" class="on">Semana</button>
     <button data-v="clientes">Clientes</button>
     <button data-v="disparo">Disparo do dia</button>
-    <button data-v="acoes">Ações</button>
+    <button data-v="acoes">Campanhas</button>
     <button data-v="novo">Novo cliente</button>
     <button data-v="prosp">Prospecção</button>
     <button data-v="ganhos">Ganhos</button>
@@ -224,7 +224,8 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
   <section id="v-acoes" class="hide">
     <div class="card">
       <div class="row">
-        <div style="flex:2 1 260px"><h2>Ações dos fornecedores</h2><div class="muted small" id="aInfo"></div></div>
+        <div style="flex:2 1 260px"><h2>Campanhas</h2><div class="muted small" id="aInfo"></div></div>
+        <select id="aVisao" style="max-width:240px"><option value="ind">Indústrias e itens</option><option value="cli">Clientes com chance</option></select>
         <input id="aBusca" placeholder="Buscar fornecedor ou produto…" style="max-width:260px">
         <select id="aOrdem" style="max-width:220px"><option value="cli">Mais clientes com chance</option><option value="fim">Termina antes</option></select>
         <select id="aCid" style="max-width:220px"><option value="">Todos clientes</option><option value="pres">Só presenciais</option><option value="rem">Só remotos</option></select>
@@ -297,8 +298,8 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
   <!-- CATALOGO -->
   <section id="v-catalogo" class="hide">
     <div class="card">
-      <div class="row"><input id="cBusca" placeholder="Buscar produto, código, marca…"><select id="cCat"><option value="">Todas categorias</option></select></div>
-      <div class="tw" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Marca</th><th class="n">Preço</th><th class="n">Clientes</th></tr></thead><tbody id="cTab"></tbody></table></div>
+      <div class="row"><input id="cBusca" placeholder="Buscar produto, código, marca…"><select id="cCat"><option value="">Todas categorias</option></select><select id="cInd"><option value="">Todas as indústrias</option></select><select id="cCamp"><option value="">Todos os produtos</option><option value="camp">Só itens de campanha</option></select></div>
+      <div class="tw" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Produto</th><th>Indústria</th><th>Categoria</th><th class="n">Preço</th><th class="n">Comissão</th><th class="n">Clientes</th></tr></thead><tbody id="cTab"></tbody></table></div>
       <div class="muted small" id="cInfo" style="margin-top:8px"></div>
     </div>
   </section>
@@ -1372,7 +1373,85 @@ function alvosAcoes(){
   for(const c of S.clientes){if(cf==='pres'&&!presencial(c))continue;if(cf==='rem'&&presencial(c))continue;
     for(const o of ofertas(c.codigo))por.get(o.a)?.push({c,o})}
   for(const l of por.values())l.sort((x,y)=>y.o.s-x.o.s);return por}
+
+/* ===================== campanhas: quem é cada indústria ===================== */
+const INFO_IND={
+ 'FIXXAR':'Etiquetadoras de preço e etiquetas para comércio (mercados, lojas, padarias).',
+ 'OPEN':'Etiquetadoras italianas (Open/Jolly), etiquetas de gôndola e de balança.',
+ 'SUPER GLOBO':'Limpeza (Santa Clara): água sanitária, desinfetantes, limpadores perfumados.',
+ 'BLASCOR':'Tintas especiais: esmalte automotivo, epóxi, tinta para piscina.',
+ 'MIDEA':'Ar-condicionado split e eletrodomésticos (marca chinesa, uma das maiores do mundo).',
+ 'HORUS':'Aparelhos de ginástica: esteiras e bicicletas ergométricas.',
+ 'AZUL PACK':'Lonas plásticas (preta/branca, amarela, agrícola) e filme de estufa — forte no campo e na construção.',
+ 'PRO CAMPO':'Sementes de pastagem (braquiária Marandu, Mombaça, Massai, Ruziensis) para agropecuárias.',
+ 'GRAP':'Metais e plásticos hidráulicos baratos: torneiras plásticas, boias, válvulas, ralos.',
+ 'MEDIX':'Descartáveis e limpeza: luvas (látex, nitrílica, vinil), panos multiuso, sacos de lixo, sacos zip.',
+ 'COPAMETAL':'Máquinas para padaria e cozinha industrial: batedeira, amassadeira, cilindro, forno, garapeira.',
+ 'MADESIL':'Mesas e cadeiras dobráveis de madeira (bares, eventos, restaurantes).',
+ 'COLSON':'Rodas, rodízios, pneus e câmaras de carrinho de mão.',
+ 'CHAMEX':'Papel A4/ofício (Sylvamo). Ação paga por cliente NOVO ou reativado.',
+ 'TYROLIT':'Discos de corte e desbaste (austríaca) — concorrente da Norton, forte em serralheria.',
+ 'TAG MINAS':'Etiquetas térmicas e bobinas para impressoras/balanças.',
+ 'TAG':'Telas soldadas galvanizadas (cercas, alambrados, viveiros).',
+ 'RIFLE':'Grosas e ferramentas para casqueamento (cavalos) — agropecuária.',
+ 'QUARTZOLIT':'Saint-Gobain: argamassas, rejuntes, impermeabilizantes, chapisco.',
+ 'NORTON':'Saint-Gobain: abrasivos — discos de corte, lixas d’água e de ferro, fitas crepe e dupla face.',
+ 'TEKBOND':'Saint-Gobain: silicones, colas instantâneas e selantes.',
+ 'GARRA':'Saint-Gobain: colas brancas (PVA), silicones, selantes PU e veda-calha.',
+ 'HENKEL':'Loctite/Super Bonder, Cascola (colas de contato e Não Mais Pregos) — colas e adesivos.',
+ 'RHEEM':'Ar-condicionado portátil e aquecimento (americana).',
+ 'MALLORY':'Ventiladores de mesa e coluna, eletroportáteis.',
+ 'DURAPADS':'Dispensers de ração a granel para pet shops e agropecuárias.',
+ 'FAST':'Metais sanitários: acabamentos de registro e de válvula de descarga (padrão Deca/Docol).',
+ 'CASA VTZZ':'Vidros para casa (Vitazza): tigelas, fruteiras, porta-bolos, assadeiras.',
+ 'MORMAII':'Bicicletas (infantis e adultas).',
+ 'INOVATORE':'Calçados de segurança: botinas de elástico Baspan (EPI).',
+ 'UDDER':'Higiene de ordenha: pré e pós-dipping, limpador de tanque de leite — produtor de leite.',
+ 'BERMAR':'Máquinas para açougue, padaria e lanchonete: moedor, serra fita, cortador de frios, liquidificador industrial.',
+ 'COTERMICO':'Bolsas e caixas térmicas.',
+ 'GINA':'Prendedores de roupa, palitos de dente e espetos de churrasco (madeira).',
+ 'BALMAK':'Balanças eletrônicas (comerciais, de checkout, de 300 kg).',
+ 'AMATOOLS':'Ferramentas e acessórios (marca Rocast): brocas, tarraxas, discos, fresas, números residenciais.',
+ 'SHIVA':'Conexões de PVC para esgoto e água (caps, curvas, joelhos).',
+ 'DOCTOR BOND':'Massa epóxi (cola massa SOS).',
+ 'KISAFIX':'Colas de contato, cola spray, cola instantânea e adesivo fixa-tudo.',
+ 'CHEMITEC':'Medicamentos veterinários (antibióticos, anti-inflamatórios) para cães, gatos e animais de produção.',
+ 'METASAL':'Metalurgia para construção: grelhas, emendas de telhado, serpentinas de fogão a lenha, caixas de incêndio.',
+ 'VONDER':'Ferramentas e máquinas (Grupo OVD): ferramentas manuais, elétricas, máquinas de solda, lavadoras, motosserras.',
+ 'MULTIONIC':'Limpeza Unik (lava-louças) e Raylin (multilimpador).',
+ 'ENERBRAS':'Material elétrico: canaletas, barramentos, bornes.',
+ 'HELFER':'Linha Helfer (mesmo fornecedor da Metalmig) — produtos de metal para casa.',
+ 'FLUIDRA':'Tratamento de piscina: cloro (Blue Pool, Astral).',
+ 'METALMIG':'Caixas de correio, fornos para fogão a lenha e grelhas.',
+ 'SA':'Equipamentos para lojas e mercados: gôndolas, check-outs, porta-paletes.'};
+const infoInd=f=>{const k=Object.keys(INFO_IND).sort((a,b)=>b.length-a.length).find(k=>norm(f).toUpperCase().startsWith(norm(k).toUpperCase()));return k?INFO_IND[k]:''};
+
+/* ===================== indústria de cada produto (marca na descrição) ===================== */
+const MARCAS=new Set(["ACQUAFLEX", "ADELBRAS", "ADERE", "AGL", "AGRO", "AHD", "AJAX", "ALBRAS", "ALCAR", "ALGOM", "ALIANCA", "ALKLIN", "ALOESTE", "ALPHA", "ALTRI", "ALUMASA", "ALUVID", "ALVORADA", "AMANCO", "AMATOOLS", "ANAUGER", "ANCORA", "ANTARES", "APOLO", "ARAGUAIA", "AROUCA", "ARQPLAST", "ARQUA", "ARTECOLA", "ARTHI", "ARTINOX", "ASTRA", "ASTRAL", "ATCLLOR", "ATHENAS", "ATLAS", "AVANT", "AVANTE", "AZUL PACK", "AZULPACK", "BALLET", "BALMAK", "BANG", "BARICHELLO", "BASPAN", "BAUTECH", "BAZZE", "BEAUTY", "BECHARA", "BELGO", "BELLINZONI", "BELMAR", "BENMAX", "BERMAR", "BESTFER", "BFL", "BIC", "BLACK&DECKER", "BLASCOR", "BLOWTEX", "BLUKIT", "BLUX", "BOSCH", "BOTAFOGO", "BRACOL", "BRASAMI", "BRASFORMA", "BRASFORT", "BRASILIT", "BRASILUX", "BRILHEX", "BRINOX", "BRITANIA", "BRIZI", "BRUSTEC", "BUFALO", "BUTTERCREAM", "CABEL", "CACULA", "CADENCE", "CALBOS", "CALHAFORTE", "CANDIDE", "CARBOGRAFITE", "CARBOSTORM", "CARIMBRAS", "CASCOLA", "CASTROL", "CENSI", "CHAMEQUINHO", "CHAMEX", "CHECK", "CHEMICOLOR", "CHEMITEC", "CHIAPERINI", "CIACOLLOR", "CIAMA", "CID", "CIMO", "CIPLA", "CIS", "CIVIT", "CIVITT", "COFLEX", "COFORJA", "COLCHOBEL", "COLORMAQ", "COLSON", "COMEP", "COMPEL", "COMPREL", "CONDOR", "CONTHEY", "CONVOY", "COPAMETAL", "CORAL", "CORFIO", "CORTAG", "COTERMICO", "COTHERM", "COZIMAX", "CRIVIALLI", "CSM", "DALLA", "DANEVA", "DARTHEL", "DECA", "DECAL", "DELLO", "DELLOPLAST", "DELTA", "DEMOBILE", "DENVER", "DEWALT", "DIAMOND", "DIMEC", "DISFLEX", "DNI", "DOCOL", "DOCTOR", "DOMUS", "DOT", "DOVALE", "DUOMO", "DURAPADS", "DUREPOXI", "ECOFLEX", "ECOFORCE", "ECOPLASTIC", "EIRILAR", "ELDORADO", "ELECTROLUX", "ELG", "ELGIN", "ELOFORT", "ELOFORTE", "EMAVI", "ENERBRAS", "ENERLUX", "ERCAPLAST", "ESCOBEL", "ESFRELUX", "ESQUADRIVAX", "ETANIZ", "ETITOYS", "EURODECOR", "EWEL", "EXATRON", "FABRIMAR", "FALKE", "FAMASTIL", "FAST", "FCA", "FELTRIN", "FICO", "FIRMEZA", "FISCHER", "FIXXAR", "FLA", "FLF", "FLON", "FLORARTE", "FLUIDRA", "FLUX", "FORMINOX", "FORTLEV", "FORTLIMP", "FORUSI", "FOXLUX", "FRAHM", "FRANCA", "FRATELLI", "FRICON", "FRISBEL", "FUNDIFERRO", "GAABOR", "GALO", "GALVAN", "GARRA", "GAUCHO", "GEDORE", "GENCO", "GERDAU", "GHELPLUS", "GILLETTE", "GINA", "GLOBO", "GNANO", "GOLDENTEC", "GOLLER", "GOOL", "GRAP", "GUARANY", "GUDIM", "GUEPA", "GUEPAR", "GUIRADO", "HAO", "HAUSKRAFT", "HELFER", "HENKEL", "HERC", "HIDROALL", "HIDROAZUL", "HIGO", "HORIZONTE", "HORTASUL", "HORUS", "HTH", "ICDER", "ILUMI", "IMAR", "IMARC", "IMBAT", "IMECA", "INCA", "INDUBRAS", "INGRAX", "INJEPLASTEC", "INJESUL", "INJETEMP", "INLUSS", "INOVATORE", "INSUL", "INTECH", "INTELBRAS", "IRWIN", "ISERO", "ITACORDA", "JACTO", "JAGUAR", "JAPI", "JETCON", "JFL", "JNG", "JOHNSON", "JOMARCA", "JORGE", "KALIPSO", "KANECHOM", "KAPAZI", "KAPPESBERG", "KARCHER", "KAWASHIMA", "KELLDRIN", "KELLY", "KENDA", "KESS", "KHARIS", "KIAN", "KISAFIX", "KOFISA", "KOLENE", "KORETECH", "KRONA", "KTELI", "LAGUNE", "LAHUMAN", "LAIPPE", "LANXESS", "LEAO", "LEGRAND", "LEONORA", "LETRON", "LEVORIN", "LIDER", "LINEX", "LOBO", "LOCTITE", "LONAX", "LORENZETTI", "LOTH", "LUBRIVAS", "LUCONI", "LUMINATTI", "LUSTER", "LYNUS", "M.FIX", "MACLOREN", "MADESIL", "MAESTRO", "MAGGION", "MAGMA", "MAKITA", "MALLORY", "MANTAC", "MARCAMIX", "MARCIA", "MARCON", "MARGIRIUS", "MARINEX", "MARINO", "MARLUVAS", "MARTINAZZO", "MASSAFIX", "MAXEB", "MAXILONA", "MAXPRINT", "MAYLE", "MAZZAFERRO", "MEBRASI", "MEBUKI", "MEDEIROS", "MEDIX", "MEGACABOS", "MEGACAR", "MEGATRON", "MEIKON", "MENEGOTTI", "MERCOTOYS", "METALCAVA", "METALFRIO", "METALKIT", "METALLOUCA", "METALMATRIX", "METALMIG", "METALOSA", "METASAL", "METASUL", "METISA", "MGM", "MIDEA", "MIMO", "MINASUL", "MINUANO", "MOMFORT", "MONDIAL", "MONDIALE", "MONTECHIESI", "MORMAII", "MOTOMIL", "MSR", "MUCAMBO", "MULTIBARRAS", "MULTICABOS", "MULTILASER", "MULTIONIC", "MULTITOC", "MULTIVISAO", "MUNDIAL", "NACIONAL", "NADIR", "NAKASHI", "NATHY", "NATICON", "NAUTIKA", "NEOCABLE", "NETUNO", "NEWMAQ", "NEWUP", "NGK", "NICIOLI", "NITRONPLAST", "NORTENE", "NORTON", "NOVAFLON", "NOVICA", "NUTRIEX", "NUTRIPLAST", "NUTRYDERM", "OFFSIDE", "OPEN", "OPUS", "OPUSPLAST", "ORBI", "OREGON", "OVERTIME", "PACETTA", "PACK", "PALMA", "PAMPEANO", "PANELUX", "PAPAIZ", "PENALTY", "PERLEX", "PHILCO", "PHILIPS", "PIAL", "PILLER", "PINUS", "PLASBOHN", "PLASMAR", "PLASMONT", "PLAST", "PLASTMAN", "PLASUNI", "PLATINA", "PLAXMETAL", "PLAY", "PLUZIE", "POLITORNO", "POLYMER", "POOL", "POTENZA", "PRAT-K", "PRIMUS", "PRINOX", "PROCLEAN", "PROELETRONIC", "PROMASTER", "PROTORK", "PULVITEC", "QUALITRONIX", "QUARTZOLIT", "QUIMIAGRI", "RAINHA", "RAMADA", "RANGER", "RAYLIN", "RAYMA", "RAYOVAC", "RAZI", "REBOUCAS", "REISAM", "REPTEC", "RHEEM", "RICCA", "RIFFEL", "RIFLE", "RINO", "RIOMAR", "ROCAST", "ROCO", "RODABRILL", "ROMA", "ROMAO", "ROSSI", "RUVOLO", "SAGA", "SANREMO", "SANTA CLARA", "SANTANA", "SANTENO", "SATA", "SAYERLACK", "SAYRO", "SBRISSA", "SCHILD", "SCHMIDT", "SCHNEIDER", "SCHULZ", "SECALUX", "SEGURIMAX", "SEMAZA", "SFOR", "SFORPLAST", "SGAMAQ", "SHIVA", "SIKA", "SILVANA", "SIMONAGGIO", "SKALA", "SOMA", "SOMAR", "SOPRANO", "SPARTA", "STA CLARA", "STAM", "STAMACO", "STANLEY", "STARFER", "STARRET", "STARRETT", "STATUFLEX", "STOLF", "SUNCAR", "SUPER GLOBO", "SUPERFLEX", "SUPPER", "SUVINIL", "SUZANPECAS", "TAG", "TASCHIBRA", "TATU", "TECBRIL", "TECFISH", "TECHLUZ", "TECHNIC", "TECNOMOBIL", "TECNYL", "TEKBOND", "TENACE", "TENEVA", "THOMPSON", "THREE", "TIGRE", "TILIBRA", "TINTAS", "TITANIUM", "TOAK", "TOLEDO", "TOOP", "TOPPER", "TORTUGA", "TOYAMA", "TRAMONTINA", "TRAPP", "TRITEC", "TUBOZAN", "TUTTI", "TUUT", "TYROLIT", "UCB", "UDDER", "ULTRACLOR", "UNICAR", "UNIK", "UNIPEGA", "USAF", "VALCAN", "VALEPLAST", "VANSIL", "VARALUX", "VEDACIT", "VEMPLAST", "VENTISOL", "VETBRAS", "VIAPOL", "VIEL", "VILEJACK", "VIQUA", "VITA", "VITAZZA", "VITRIZI", "VIVO", "VOLK", "VONDER", "VONIXX", "VPTEX", "VTV", "VTZ", "VTZZ", "VULCAN", "WAGO", "WEG", "WESTERN", "WHEATON", "WRANGLER", "YANGZI", "YAZI", "Z&A", "ZARCOMAX", "ZEBINA"]);
+const MARCAS_2=[...MARCAS].filter(m=>m.includes(' '));
+const IND_CACHE=new Map();
+function industria(p,d){const k=p||d;if(IND_CACHE.has(k))return IND_CACHE.get(k);
+  const t=' '+norm(d||pDesc(p)).toUpperCase().replace(/CATALOGO 20.*$/,'').replace(/[^A-Z0-9&\- ]/g,' ').replace(/\s+/g,' ')+' ';let r='';
+  for(const m of MARCAS_2)if(t.includes(' '+m+' ')){r=m;break}
+  if(!r){const ws=t.trim().split(' ');for(let i=ws.length-1;i>=0;i--)if(MARCAS.has(ws[i])){r=ws[i];break}}
+  r=r?r.replace('STARRET','STARRETT').replace('STARRETTT','STARRETT').replace('STA CLARA','SANTA CLARA').replace('AZULPACK','AZUL PACK'):'';
+  IND_CACHE.set(k,r);return r}
+const nomeInd=m=>m?m.toLowerCase().replace(/(^|[\s&\-])([a-z])/g,(x,a,b)=>a+b.toUpperCase()):'';
+
+function renderCampInd(){const q=norm($('#aBusca').value);
+  let arr=IX.acoes.filter(a=>!q||norm(a.fornecedor+' '+a.tipo+' '+infoInd(a.fornecedor)+' '+a.itens.map(i=>i.d).join(' ')).includes(q));
+  arr=arr.slice().sort($('#aOrdem').value==='fim'?(x,y)=>x.fim-y.fim:(x,y)=>x.fornecedor.localeCompare(y.fornecedor));
+  $('#aInfo').textContent=`${IX.acoes.length} campanhas ativas · toque numa indústria para ver os itens`;
+  $('#aLista').innerHTML=arr.map(a=>{const inf=infoInd(a.fornecedor),its=a.itens.filter(i=>!q||norm(i.d).includes(q)||norm(a.fornecedor).includes(q));
+    return `<details class="card"><summary style="cursor:pointer;list-style:none"><div class="row" style="align-items:flex-start"><div style="flex:3 1 280px"><b style="font-size:16px">${h(a.fornecedor)}</b> <span class="muted small">com. ${h(a.com)}</span>
+      ${inf?`<div class="small">${h(inf)}</div>`:''}<div class="small" style="margin-top:4px"><span class="badge b-ativo">${h(a.tipo)}</span> até <b>${fmtDia(a.fim)}</b>${a.ranking?' · <span class="badge">ranking</span>':''}${a.brinde?' · <span class="badge">promo p/ cliente</span>':''}</div>
+      ${a.obs?`<div class="small muted">${h(a.obs)}</div>`:''}</div><div class="small muted" style="flex:0 0 auto">${a.itens.length} itens ▾</div></div></summary>
+      ${its.length?`<div class="tw" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Produto</th><th class="n">Preço</th><th class="n">Comissão</th><th class="n">Você ganha</th><th class="n">Clientes</th></tr></thead><tbody>
+      ${its.slice(0,150).map(i=>`<tr><td class="small">${h(i.cod||i.p)}</td><td>${h(curta(i.d))}${i.novo?' <span class="badge">novo</span>':''}</td><td class="n">${i.preco?brl(i.preco):'—'}</td><td class="n">${fmtN(comPct(i.p,i.d,1))}%</td><td class="n small">${h(i.premio&&i.premio!==a.tipo?i.premio:a.tipo)}</td><td class="n">${IX.cpp.get(i.p)?.size||0}</td></tr>`).join('')}</tbody></table></div>${its.length>150?`<div class="small muted">+${its.length-150} itens — use a busca</div>`:''}`
+      :`<div class="small muted" style="margin-top:8px">Vale para a linha toda da indústria. Veja os itens no Catálogo filtrando por indústria.</div>`}</details>`}).join('')||'<div class="card vazio">Nenhuma campanha com essa busca.</div>'}
 function renderAcoes(){
+  if(IX.acoes.length&&$('#aVisao').value==='ind'){$('#aCid').classList.add('hide');$('#aExport').classList.add('hide');$('#aOrdem').options[0].textContent='A–Z';return renderCampInd()}
+  $('#aCid').classList.remove('hide');$('#aExport').classList.remove('hide');$('#aOrdem').options[0].textContent='Mais clientes com chance';
   if(!IX.acoes.length){$('#aInfo').textContent='';$('#aLista').innerHTML='<div class="card vazio">Nenhuma ação ativa. Importe <b>dados/acoes.json</b> em Dados &gt; Restaurar backup.</div>';return}
   const q=norm($('#aBusca').value),por=alvosAcoes();
   let arr=[...por.entries()];
@@ -1389,7 +1468,7 @@ function renderAcoes(){
       ${l.length?`<div class="tw"><table><thead><tr><th>Cliente</th><th>Oferecer</th><th>Por quê</th><th class="n"></th></tr></thead><tbody>${l.slice(0,40).map(t=>`<tr><td><b>${h(t.c.fantasia||t.c.nome)}</b><div class="small muted">${h(t.c.codigo)} · ${h(t.c.cidade||'')}${presencial(t.c)?' · presencial':''}</div></td><td class="small">${h(curta(t.o.item.d))}</td><td class="small"><span class="badge ${t.o.tipo==='similar'?'':'b-ativo'}">${h(t.o.tipo)}</span> ${h(t.o.motivo)}</td><td class="n"><button class="btn sm" data-fc="${h(t.c.codigo)}">Ficha</button></td></tr>`).join('')}</tbody></table></div>${l.length>40?`<div class="small muted">+${l.length-40} clientes — use o Exportar CSV</div>`:''}`:'<div class="small muted">Nenhum cliente com histórico parecido. Oferecer na conversa quando fizer sentido.</div>'}</details>
       <details><summary class="small" style="cursor:pointer;color:var(--muted);margin-top:4px">Produtos da ação (${a.itens.length})</summary><div class="small">${a.itens.slice(0,80).map(it=>`${h(it.cod||it.p)} — ${h(curta(it.d))}${it.premio&&it.premio!==a.tipo?' · <b>'+h(it.premio)+'</b>':''}${it.preco?' · '+brl(it.preco):''}${it.novo?' <span class="badge">novo</span>':''}`).join('<br>')}</div></details></div>`}).join('')}
 $('#aLista').addEventListener('click',e=>{const b=e.target.closest('[data-fc]');if(b){ir('clientes');abrirFicha(b.dataset.fc)}});
-let ta;$('#aBusca').oninput=()=>{clearTimeout(ta);ta=setTimeout(renderAcoes,150)};$('#aOrdem').onchange=renderAcoes;$('#aCid').onchange=renderAcoes;
+let ta;$('#aBusca').oninput=()=>{clearTimeout(ta);ta=setTimeout(renderAcoes,150)};$('#aOrdem').onchange=renderAcoes;$('#aVisao').onchange=renderAcoes;$('#aCid').onchange=renderAcoes;
 $('#gPer').onchange=renderGanhos;
 $('#aExport').onclick=()=>{const L=[['acao','fornecedor','ate','codigo','cliente','cidade','telefone','oferecer','cod_produto','tipo','motivo','ganho'].join(';')];
   for(const [a,l] of alvosAcoes())for(const t of l)L.push([a.com,a.fornecedor,fmtDia(a.fim),t.c.codigo,t.c.fantasia||t.c.nome,t.c.cidade,t.c.telefone,t.o.item.d,t.o.item.cod||t.o.item.p,t.o.tipo,t.o.motivo,premioTxt(t.o)].map(csvCel).join(';'));
@@ -1397,13 +1476,16 @@ $('#aExport').onclick=()=>{const L=[['acao','fornecedor','ate','codigo','cliente
 
 /* ===================== tela: catálogo ===================== */
 function renderCatalogo(){
-  const q=norm($('#cBusca').value),cat=$('#cCat').value;
-  let arr=S.catalogo;if(cat)arr=arr.filter(p=>p.categoria===cat);
+  const q=norm($('#cBusca').value),cat=$('#cCat').value,ind=$('#cInd').value,camp=$('#cCamp').value;
+  if($('#cInd').options.length<2){const n=new Map();for(const p of S.catalogo){const m=industria(p.codigo,p.descricao);if(m)n.set(m,(n.get(m)||0)+1)}
+    $('#cInd').innerHTML='<option value="">Todas as indústrias</option>'+[...n.entries()].filter(x=>x[1]>=3).sort((a,b)=>a[0].localeCompare(b[0])).map(([m,c])=>`<option value="${h(m)}">${h(nomeInd(m))} (${c})</option>`).join('')}
+  let arr=S.catalogo;if(cat)arr=arr.filter(p=>p.categoria===cat);if(ind)arr=arr.filter(p=>industria(p.codigo,p.descricao)===ind);if(camp)arr=arr.filter(p=>acoesDoProduto(p.codigo).length);
   if(q)arr=arr.filter(p=>norm(p.codigo+' '+p.descricao+' '+(p.marca||'')+' '+(p.categoria||'')).includes(q));
   const tot=arr.length;arr=arr.slice(0,300);
-  $('#cTab').innerHTML=arr.map(p=>`<tr><td>${h(p.codigo)}</td><td>${h(p.descricao)}</td><td>${h(p.categoria||'')}</td><td>${h(p.marca||'')}</td><td class="n">${p.preco?brl(p.preco):'—'}</td><td class="n">${IX.cpp.get(p.codigo)?.size||0}</td></tr>`).join('');
-  $('#cInfo').textContent=tot?`${tot} produto(s)${tot>300?' — mostrando 300':''}`:'Nenhum produto. Importe o catálogo na aba Dados.'}
-$('#cBusca').oninput=renderCatalogo;$('#cCat').onchange=renderCatalogo;
+  $('#cTab').innerHTML=arr.map(p=>`<tr><td>${h(p.codigo)}</td><td>${h(p.descricao)}</td><td>${h(nomeInd(industria(p.codigo,p.descricao)))}${acoesDoProduto(p.codigo).length?' <span class="badge b-ativo">campanha</span>':''}</td><td class="small">${h(p.categoria||'')}</td><td class="n">${p.preco?brl(p.preco):'—'}</td><td class="n">${fmtN(comPct(p.codigo,p.descricao,1))}%</td><td class="n">${IX.cpp.get(p.codigo)?.size||0}</td></tr>`).join('');
+  const infoI=ind&&infoInd(ind);
+  $('#cInfo').textContent=(infoI?nomeInd(ind)+': '+infoI+' · ':'')+(tot?`${tot} produto(s)${tot>300?' — mostrando 300':''}`:'Nenhum produto com esse filtro.')}
+let tcb;$('#cBusca').oninput=()=>{clearTimeout(tcb);tcb=setTimeout(renderCatalogo,150)};$('#cCat').onchange=renderCatalogo;$('#cInd').onchange=renderCatalogo;$('#cCamp').onchange=renderCatalogo;
 
 /* ===================== importação ===================== */
 const SCHEMA={
