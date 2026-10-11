@@ -419,7 +419,7 @@ function toDia(v){
   m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return Math.floor(Date.UTC(+m[1],m[2]-1,+m[3])/864e5);
   if(/^\d{5}(\.\d+)?$/.test(s))return toDia(+s);
   return null}
-const curta=d=>{d=str(d);if(!d)return '';d=d.toLowerCase().replace(/(^|\s)([a-zà-ú])/g,(m,a,b)=>a+b.toUpperCase());return d.length>45?d.slice(0,45)+'…':d};
+const curta=d=>{d=str(d);if(!d)return '';d=d.toLowerCase().replace(/(^|\s)([a-zà-ú])/g,(m,a,b)=>a+b.toUpperCase());return d.replace(/\s*CAT[ÁA]LOGO 20\d\d.*$/i,'').replace(/\s{2,}/g,' ').trim()}; // nome completo, sem abreviar
 const listaTxt=a=>{a=a.filter(Boolean);return a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' e '+a[a.length-1]};
 const saudacao=()=>{const x=new Date().getHours();return x<12?'Bom dia':x<18?'Boa tarde':'Boa noite'};
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2200)}
