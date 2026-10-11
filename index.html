@@ -245,10 +245,10 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
     <div class="cols2">
       <div class="card">
         <h2>Novo cliente</h2>
-        <div class="muted small">Passou na porta de uma loja que ainda não compra? Escolha o tipo de loja e o tamanho: o pedido sai pronto, com preço, ações do mês e a sua comissão.</div>
+        <div class="muted small">Passou na porta de uma loja que ainda não compra? Escolha o tipo de loja e quantos produtos quer ver: a sugestão sai pronta, só com itens de revenda, com preço, ações do mês e a sua comissão.</div>
         <div class="row" style="margin-top:12px">
           <div style="flex:2 1 220px"><label for="nSeg">Tipo de loja</label><select id="nSeg"></select></div>
-          <div><label for="nTam">Tamanho do pedido</label><select id="nTam"><option value="400">Pequeno (~R$ 400)</option><option value="1000" selected>Médio (~R$ 1.000)</option><option value="2500">Grande (~R$ 2.500)</option></select></div>
+          <div><label for="nTam">Produtos sugeridos</label><select id="nTam"><option value="10" selected>10 produtos</option><option value="20">20 produtos</option><option value="30">30 produtos</option><option value="50">50 produtos</option></select></div>
           <div><label for="nFoco">Montar com</label><select id="nFoco"><option value="giro">Mais vendidos do tipo de loja</option><option value="acoes">Prioridade para as ações do mês</option><option value="comissao">Prioridade para comissão cheia (5%)</option></select></div>
         </div>
         <div class="row" style="margin-top:6px"><input id="nBusca" placeholder="Filtrar itens: ex. torneira, lâmpada, lona…" autocomplete="off"></div>
@@ -357,6 +357,7 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
         <div><label>Meta de venda semanal (R$)</label><input id="cfg-metaSemana" type="number" min="0"></div>
         <div><label>Meta de venda mensal (R$)</label><input id="cfg-metaMes" type="number" min="0" placeholder="vazio = 4× a semanal"></div>
         <div><label>Prospects por dia na Semana (lojas que ainda não compram)</label><input id="cfg-prospectsDia" type="number" min="0"></div>
+        <div><label>Pedido mínimo (R$) — para o app avisar quanto falta</label><input id="cfg-pedidoMinimo" type="number" min="0" step="1" placeholder="ex.: 300"></div>
         <div><label>Comissão Grupo 1 do contrato (%) — padrão 5</label><input id="cfg-comissaoBase" type="number" min="0" step="0.01" placeholder="5"></div>
       </div>
       <div class="row">
@@ -441,7 +442,7 @@ function salvar(k){if(typeof agendarPush==='function')agendarPush();return salva
 
 const SEGS=['Materiais de Construção','Construtora','Supermercado / Mercearia','Bar','Lanchonete / Restaurante','Padaria','Boate / Eventos','Agropecuária','Autopeças / Oficina','Papelaria','Farmácia','Utilidades / Variedades','Indústria','Órgão público / Entidade','Consumidor final','Outros'];
 const segEf=c=>c.segmento||c.segmento_sugerido||'',segSug=c=>!c.segmento&&!!c.segmento_sugerido;
-const CFG0={codigoRCA:'37223',vendedor:'Marcus',secretaria:'Claudia',empresa:'Tambasa',cidadePresencial:'Carmo do Paranaíba',limiteDia:30,intervaloRecontato:7,visitasDia:10,remotosDia:20,metaSemana:6000,metaMes:'',comissaoBase:5,casaEnd:'',casaLat:'',casaLng:'',prospectsDia:2,ordemBairros:'',foraRota:'Quintinos'+String.fromCharCode(10)+'Zona Rural',
+const CFG0={codigoRCA:'37223',vendedor:'Marcus',secretaria:'Claudia',empresa:'Tambasa',cidadePresencial:'Carmo do Paranaíba',limiteDia:30,intervaloRecontato:7,visitasDia:10,remotosDia:20,metaSemana:6000,metaMes:'',comissaoBase:5,pedidoMinimo:'',casaEnd:'',casaLat:'',casaLng:'',prospectsDia:2,ordemBairros:'',foraRota:'Quintinos'+String.fromCharCode(10)+'Zona Rural',
  tplRemoto:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Vi que já está chegando a hora de repor {produtos_repor}. Quer que eu já monte o pedido pra você? Se quiser, também te passo condição em {sugestoes}.',
  tplPresencial:'{saudacao}, {contato}! Aqui é a {secretaria}, secretária do {vendedor}. Ele está organizando a rota dessa semana e pediu pra eu te perguntar se precisa de {produtos_repor}. Quer que ele já leve o pedido separado na visita?',
  tplReativar:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Faz um tempinho que não falamos e queria saber como estão as coisas por aí. Você costumava levar {produtos_repor} com a gente. Quer que eu te passe as condições atuais?',
@@ -1273,43 +1274,44 @@ const chavePack=d=>norm(d).replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w&&
 function embalagemMenor(p,d,teto){if(!FAMPACK){FAMPACK=new Map();for(const c of S.catalogo){if(!(c.preco>0))continue;const k=chavePack(c.descricao);if(!k)continue;if(!FAMPACK.has(k))FAMPACK.set(k,[]);FAMPACK.get(k).push(c)}}
   const l=(FAMPACK.get(chavePack(d))||[]).filter(c=>c.codigo!==p&&c.preco<(pPreco(p)||1e9)&&/a4|a3|carta|oficio/.test(norm(c.descricao))===/a4|a3|carta|oficio/.test(norm(d))&&(norm(d).match(/\ba4\b|\ba3\b|carta|oficio/)||[''])[0]===(norm(c.descricao).match(/\ba4\b|\ba3\b|carta|oficio/)||[''])[0]);
   if(!l.length)return null;l.sort((a,b)=>Math.abs(a.preco-teto)-Math.abs(b.preco-teto));return l[0]}
-let NPED=[],NREM=new Set();
-function montarPedidoPronto(){const seg=$('#nSeg').value,alvo=+$('#nTam').value,foco=$('#nFoco').value,q=norm($('#nBusca').value);
-  let cand=topSegmento(seg,250).filter(x=>x.preco&&!NREM.has(x.p)&&(!q||norm(x.d).includes(q)));
+let NPED=[],NREM=new Set(),NCOMP=[],NADD=new Set();
+// pedido pronto: só itens de REVENDA. Itens de consumo da loja ficam à parte, como "complementos" para
+// positivar uma ação ou completar o pedido mínimo — entram só se você adicionar.
+function montarPedidoPronto(){const seg=$('#nSeg').value,nMax=+$('#nTam').value,foco=$('#nFoco').value,q=norm($('#nBusca').value);
+  const todos=topSegmento(seg,400).filter(x=>x.preco&&!NREM.has(x.p));
   const acaoDe=p=>acoesDoProduto(p).filter(z=>!z.a.ranking).length?1:0;
-  const pont=x=>x.share*100+(foco==='acoes'?acaoDe(x.p)*40:0)+(foco==='comissao'?(faixaCom(x.p,x.d)==='P'?25:0):0)-(usoLoja(seg,x.p,x.d)?15:0);
-  cand.sort((a,b)=>pont(b)-pont(a));
-  const ped=[],vistos=new Set();let tot=0,nUso=0;
-  for(const x of cand){if(tot>=alvo&&ped.length>=5)break;
-    let it={p:x.p,d:x.d,q:qtdTipica(seg,x.p),preco:Math.round(x.preco*100)/100,share:x.share};
-    if(usoLoja(seg,x.p,x.d)){if(nUso>=2)continue;
-      const ac=acoesDoProduto(x.p).filter(z=>!z.a.ranking);
-      if(ac.length&&it.preco<=alvo*.3){it.q=1;it.nota=ac.some(z=>z.a.reativacao)?'uso da loja · 1 caixa já conta na ação':'uso da loja · quantidade mínima da ação'}
-      else{const m=embalagemMenor(x.p,x.d,alvo*.06);if(m)it={...it,p:m.codigo,d:m.descricao,preco:Math.round(m.preco*100)/100};it.q=1;it.nota='uso da loja (não é revenda) · embalagem menor'}
-      it.uso=true;nUso++}
-    if(vistos.has(it.p))continue;
-    const sub=it.q*it.preco;if(it.uso&&sub>alvo*.3)continue;if(sub>alvo*(it.uso?.3:.35)&&ped.length){if(it.q>1){it.q=Math.max(1,Math.floor(alvo*.35/it.preco))}else continue}
-    vistos.add(it.p);ped.push(it);tot+=it.q*it.preco;if(ped.length>=25)break}
+  const pont=x=>x.share*100+(foco==='acoes'?acaoDe(x.p)*40:0)+(foco==='comissao'?(faixaCom(x.p,x.d)==='P'?25:0):0);
+  const revenda=todos.filter(x=>!usoLoja(seg,x.p,x.d)&&(!q||norm(x.d).includes(q))).sort((a,b)=>pont(b)-pont(a));
+  const ped=[];for(const x of revenda){ped.push({p:x.p,d:x.d,q:qtdTipica(seg,x.p),preco:Math.round(x.preco*100)/100,share:x.share});if(ped.length>=nMax)break}
+  // complementos: consumo da loja que dá campanha (1 unidade/caixa = o mínimo que positiva)
+  const comp=[];for(const x of todos){if(!usoLoja(seg,x.p,x.d))continue;const ac=acoesDoProduto(x.p).filter(z=>!z.a.ranking);if(!ac.length)continue;
+    comp.push({p:x.p,d:x.d,q:1,preco:Math.round(x.preco*100)/100,share:x.share,uso:true,nota:ac.some(z=>z.a.reativacao)?'uso da loja · 1 caixa positiva a ação':'uso da loja · positiva a ação',acao:ac[0].a.fornecedor});if(comp.length>=6)break}
+  NCOMP=comp;for(const c of comp)if(NADD.has(c.p))ped.push({...c});
   NPED=ped}
 function renderNovo(){
   const segs=[...new Set(SEGS.concat(S.clientes.map(segEf).filter(Boolean)))].filter(sg=>perfilSeg(sg).lojas>=3).sort((a,b)=>perfilSeg(b).lojas-perfilSeg(a).lojas);
   if(!$('#nSeg').options.length){$('#nSeg').innerHTML=segs.map(sg=>`<option value="${h(sg)}">${h(sg)} (${perfilSeg(sg).lojas} lojas)</option>`).join('')+'<option value="">Outro / não sei (mais vendidos em geral)</option>';if(!$('#nCidade').value)$('#nCidade').value=S.config.cidadePresencial||''}
   if(!S.clientes.length){$('#nPed').innerHTML='<div class="vazio">A base ainda não carregou.</div>';return}
   montarPedidoPronto();renderNPed();renderRecentes()}
-function renderNPed(){const v=NPED,tot=pedTotal(v),com=v.reduce((s,i)=>s+comItem(i,1),0),ex=v.reduce((s,i)=>s+ganhoItem(i,1).g,0),seg=$('#nSeg').value;
+function renderNPed(){const v=NPED,minimo=num(S.config.pedidoMinimo),tot=pedTotal(v),com=v.reduce((s,i)=>s+comItem(i,1),0),ex=v.reduce((s,i)=>s+ganhoItem(i,1).g,0),seg=$('#nSeg').value;
   $('#nPed').innerHTML=v.length?`<div class="tw"><table><thead><tr><th>Produto</th><th class="n">Qtd</th><th class="n">Preço</th><th class="n">Subtotal</th><th></th></tr></thead><tbody>
    ${v.map((i,k)=>{const ac=acoesDoProduto(i.p).filter(z=>!z.a.ranking&&!z.a.reativacao)[0];return `<tr><td>${h(curta(i.d))}<div class="small muted">${h(i.p)} · ${i.nota?`<b>${h(i.nota)}</b> · `:''}${Math.round(i.share*100)}% das lojas ${seg?'do tipo':''} compram · comissão ${fmtN(comPct(i.p,i.d,1))}%${ac?` · <span style="color:var(--ok)">ação ${h(ac.a.fornecedor.split(' (')[0])}: ${h(ac.it.premio&&ac.it.premio!==ac.a.tipo?ac.it.premio:ac.a.tipo)}</span>`:''}</div></td>
     <td class="n"><input data-nq="${k}" type="number" min="0" step="1" value="${i.q}" style="width:70px;text-align:right"></td><td class="n">${brl(i.preco)}</td><td class="n">${brl(i.q*i.preco)}</td><td class="n"><button class="btn sm" data-nrem="${h(i.p)}" title="Tirar e pôr outro no lugar">✕</button></td></tr>`}).join('')}
    </tbody></table></div>
    <div class="row" style="margin-top:10px;align-items:flex-end"><div><div class="small muted">Pedido pronto · ${v.length} itens</div><div style="font-size:22px;font-weight:800">${brl(tot)}</div><div class="small">Sua comissão (Grupo 1): <b>${brl(com)}</b>${ex?` + <b style="color:var(--ok)">${brl(ex)}</b> das ações`:''} <span class="muted">(estimativa)</span></div></div>
-   <div class="row" style="justify-content:flex-end;flex:1 1 200px"><button class="btn sm" id="nCopiar">Copiar pedido</button>${NREM.size?'<button class="btn sm" id="nReset">Desfazer remoções</button>':''}</div></div>`
+   <div class="row" style="justify-content:flex-end;flex:1 1 200px"><button class="btn sm" id="nCopiar">Copiar pedido</button>${NREM.size?'<button class="btn sm" id="nReset">Desfazer remoções</button>':''}</div></div>
+   ${minimo?`<div class="small" style="margin-top:6px;${tot<minimo?'color:var(--warn);font-weight:700':'color:var(--ok)'}">${tot<minimo?`Faltam ${brl(minimo-tot)} para o pedido mínimo de ${brl(minimo)}`:`Pedido mínimo de ${brl(minimo)} atingido`}</div>`:''}
+   ${NCOMP.length?`<details class="legenda" style="margin-top:12px"${minimo&&tot<minimo?' open':''}><summary>Complementos de campanha — consumo da loja (${NCOMP.length})</summary>
+     <div class="small muted" style="display:block">Não são revenda. Use só para positivar a ação ou fechar o pedido mínimo.</div>
+     ${NCOMP.map(c=>`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%"><span>${h(curta(c.d))} · ${brl(c.preco)} <span class="muted">· ação ${h(c.acao.split(' (')[0])}</span></span>${NADD.has(c.p)?`<button class="btn sm" data-ncomp="${h(c.p)}">Tirar</button>`:`<button class="btn sm" data-ncomp="${h(c.p)}">+ Adicionar</button>`}</div>`).join('')}</details>`:''}`
    :'<div class="vazio">Nenhum item com esse filtro. Tente outro tipo de loja ou limpe a busca.</div>'}
 function renderRecentes(){const l=(S.novos||[]).slice().sort((a,b)=>(b.criado||0)-(a.criado||0)).slice(0,8);
   $('#nRecentes').innerHTML=l.length?`<h3>Cadastrados por você</h3>${l.map(c=>`<div class="small" style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)"><span><b>${h(c.nome)}</b> · ${h(c.bairro||c.cidade||'')} ${c.convertido?'<span class="badge b-ativo">cliente</span>':'<span class="badge b-novo">novo</span>'}</span><a href="#" data-nabre="${h(c.codigo)}">abrir</a></div>`).join('')}`:''}
 function textoPedidoPronto(){const v=NPED;return [`Pedido sugerido — ${$('#nSeg').value||'loja'}`,'',...v.map(i=>`• ${i.q}x ${curta(i.d)} — ${brl(i.preco)} = ${brl(i.q*i.preco)}`),'',`Total: ${brl(pedTotal(v))}`].join('\n')}
-for(const id of ['#nSeg','#nTam','#nFoco'])$(id).onchange=()=>{NREM.clear();montarPedidoPronto();renderNPed()};
+for(const id of ['#nSeg','#nTam','#nFoco'])$(id).onchange=()=>{NREM.clear();if(id==='#nSeg')NADD.clear();montarPedidoPronto();renderNPed()};
 let tnb;$('#nBusca').oninput=()=>{clearTimeout(tnb);tnb=setTimeout(()=>{montarPedidoPronto();renderNPed()},200)};
-$('#nPed').addEventListener('click',e=>{const r=e.target.closest('[data-nrem]');if(r){NREM.add(r.dataset.nrem);montarPedidoPronto();renderNPed();return}
+$('#nPed').addEventListener('click',e=>{const cp=e.target.closest('[data-ncomp]');if(cp){const k=cp.dataset.ncomp;NADD.has(k)?NADD.delete(k):NADD.add(k);montarPedidoPronto();renderNPed();return}
+  const r=e.target.closest('[data-nrem]');if(r){NREM.add(r.dataset.nrem);montarPedidoPronto();renderNPed();return}
   if(e.target.id==='nCopiar')copiar(textoPedidoPronto());if(e.target.id==='nReset'){NREM.clear();montarPedidoPronto();renderNPed()}});
 $('#nPed').addEventListener('change',e=>{const k=e.target.dataset.nq;if(k==null)return;NPED[+k].q=Math.max(0,num(e.target.value));renderNPed()});
 $('#nRecentes').addEventListener('click',e=>{const a=e.target.closest('[data-nabre]');if(a){e.preventDefault();ir('clientes');abrirFicha(a.dataset.nabre)}});
