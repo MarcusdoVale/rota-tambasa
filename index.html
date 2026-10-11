@@ -327,7 +327,7 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
         <div><label>Meta de venda semanal (R$)</label><input id="cfg-metaSemana" type="number" min="0"></div>
         <div><label>Meta de venda mensal (R$)</label><input id="cfg-metaMes" type="number" min="0" placeholder="vazio = 4× a semanal"></div>
         <div><label>Prospects por dia na Semana (lojas que ainda não compram)</label><input id="cfg-prospectsDia" type="number" min="0"></div>
-        <div><label>Sua comissão base (%)</label><input id="cfg-comissaoBase" type="number" min="0" step="0.01" placeholder="ex.: 3"></div>
+        <div><label>Comissão Grupo 1 do contrato (%) — padrão 5</label><input id="cfg-comissaoBase" type="number" min="0" step="0.01" placeholder="5"></div>
       </div>
       <div class="row">
         <div style="flex:2 1 280px"><label>Endereço de casa (fim da rota no Google Maps)</label><input id="cfg-casaEnd" placeholder="Rua, número - bairro, cidade - MG"></div>
@@ -411,7 +411,7 @@ function salvar(k){if(typeof agendarPush==='function')agendarPush();return salva
 
 const SEGS=['Materiais de Construção','Construtora','Supermercado / Mercearia','Bar','Lanchonete / Restaurante','Padaria','Boate / Eventos','Agropecuária','Autopeças / Oficina','Papelaria','Farmácia','Utilidades / Variedades','Indústria','Órgão público / Entidade','Consumidor final','Outros'];
 const segEf=c=>c.segmento||c.segmento_sugerido||'',segSug=c=>!c.segmento&&!!c.segmento_sugerido;
-const CFG0={codigoRCA:'37223',vendedor:'Marcus',secretaria:'Claudia',empresa:'Tambasa',cidadePresencial:'Carmo do Paranaíba',limiteDia:30,intervaloRecontato:7,visitasDia:10,remotosDia:20,metaSemana:6000,metaMes:'',comissaoBase:'',casaEnd:'',casaLat:'',casaLng:'',prospectsDia:2,ordemBairros:'',foraRota:'Quintinos'+String.fromCharCode(10)+'Zona Rural',
+const CFG0={codigoRCA:'37223',vendedor:'Marcus',secretaria:'Claudia',empresa:'Tambasa',cidadePresencial:'Carmo do Paranaíba',limiteDia:30,intervaloRecontato:7,visitasDia:10,remotosDia:20,metaSemana:6000,metaMes:'',comissaoBase:5,casaEnd:'',casaLat:'',casaLng:'',prospectsDia:2,ordemBairros:'',foraRota:'Quintinos'+String.fromCharCode(10)+'Zona Rural',
  tplRemoto:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Vi que já está chegando a hora de repor {produtos_repor}. Quer que eu já monte o pedido pra você? Se quiser, também te passo condição em {sugestoes}.',
  tplPresencial:'{saudacao}, {contato}! Aqui é a {secretaria}, secretária do {vendedor}. Ele está organizando a rota dessa semana e pediu pra eu te perguntar se precisa de {produtos_repor}. Quer que ele já leve o pedido separado na visita?',
  tplReativar:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Faz um tempinho que não falamos e queria saber como estão as coisas por aí. Você costumava levar {produtos_repor} com a gente. Quer que eu te passe as condições atuais?',
@@ -643,7 +643,7 @@ function abrirFicha(cod){
    ${ofs.length?`<div class="hl" style="border-color:var(--ok);margin-top:14px"><h3 style="margin-top:0">Ações do mês — ofereça (você ganha extra)</h3>${tabP(ofs.slice(0,10),[['Oferecer',x=>h(curta(x.item.d))+`<div class="small muted">${h(x.item.cod||x.item.p||'')} · ${h(x.a.fornecedor)}</div>`],['Por quê',x=>`<span class="badge ${x.tipo==='similar'?'':'b-ativo'}">${h(x.tipo)}</span> <span class="small">${h(x.motivo)}</span>`],['Você ganha',x=>h(premioTxt(x)),'n'],['Até',x=>fmtDia(x.a.fim),'n'],['Preço',x=>x.item.preco?brl(x.item.preco):'—','n'],['',x=>`<button class="btn sm" data-nt="${ofs.indexOf(x)}" title="Ele não trabalha com isso — não oferecer mais">não trabalha</button>`,'n']])}</div>`:''}
    ${ntL.length?`<div class="small muted" style="margin-top:8px">Não trabalha com (não é oferecido): ${ntL.map((x,i)=>`${h(x.txt||x.f||x.a)} <a href="#" data-unt="${i}">desfazer</a>`).join(' · ')}</div>`:''}
    <h3>O que ele compra</h3>
-   ${a.produtos.length?tabP(a.produtos.slice(0,25),[['Produto',x=>h(curta(x.desc))+`<div class="small muted">${h(x.codigo)}</div>`],['Vezes',x=>x.n,'n'],['Qtd total',x=>fmtN(x.qtd),'n'],['Última',x=>fmtDia(x.ult),'n'],['Pagou',x=>x.pago?brl(x.pago):'—','n'],['Preço ref.',x=>x.preco?brl(x.preco):'—','n']]):'<div class="muted">Sem histórico de compras.</div>'}
+   ${a.produtos.length?tabP(a.produtos.slice(0,25),[['Produto',x=>h(curta(x.desc))+`<div class="small muted">${h(x.codigo)} · comissão ${fmtN(comPct(x.codigo,x.desc,1))}%</div>`],['Vezes',x=>x.n,'n'],['Qtd total',x=>fmtN(x.qtd),'n'],['Última',x=>fmtDia(x.ult),'n'],['Pagou',x=>x.pago?brl(x.pago):'—','n'],['Preço ref.',x=>x.preco?brl(x.preco):'—','n']]):'<div class="muted">Sem histórico de compras.</div>'}
    ${a.parou.length?`<h3>Parou de comprar</h3>${tabP(a.parou.slice(0,10),[['Produto',x=>h(curta(x.desc))],['Comprava a cada',x=>Math.round(x.int)+' d','n'],['Última',x=>fmtDia(x.ult),'n']])}`:''}
    <h3>${sug[0]?.seg?`Oferecer — mais vendidos para ${h(segEf(c)||'lojas como esta')}`:'Oferecer (clientes parecidos compram)'}</h3>
    ${sug.length?tabP(sug,[['Produto',x=>h(curta(x.desc))+`<div class="small muted">${h(x.codigo)}${x.categoria?' · '+h(x.categoria):''}</div>`],[sug[0]?.seg?'Lojas que compram':'Clientes que compram',x=>x.clientes,'n'],['Preço',x=>x.preco?brl(x.preco):'—','n'],['',x=>`<button class="btn sm" data-nts="${sug.indexOf(x)}" title="Ele não trabalha com isso — não oferecer mais">não trabalha</button>`,'n']]):'<div class="muted">Sem sugestões ainda.</div>'}
@@ -702,7 +702,7 @@ function regDoDia(cod,d){let r=null;for(const k of S.contatos)if(k.cliente===cod
 
 // localização dos bairros de Carmo (ferramentas/geocodificar_bairros.py) e da casa do Marcus (Rua Alvorada, Jardim JB)
 const BAIRRO_XY={"_casa":[-18.9936,-46.3093],"alvorada":[-18.99663,-46.31358],"amazonas":[-19.00044,-46.30274],"bela vista":[-18.99563,-46.29629],"bela vista ii":[-18.99534,-46.29709],"centro":[-18.9996,-46.31277],"guanabara":[-18.99163,-46.3107],"jardim das palmeiras":[-18.98792,-46.30428],"jb":[-18.9958,-46.30135],"jk":[-19.00002,-46.30446],"lagoinha":[-19.00283,-46.31141],"minas gerais":[-18.9955,-46.30648],"morro grande":[-18.99558,-46.31641],"niteroi":[-18.99366,-46.30538],"paraiso":[-19.00562,-46.30699],"paranaiba":[-19.00114,-46.31779],"parque da banheira":[-18.9958,-46.30135],"parque do taboao":[-19.00114,-46.31779],"quintinos":[-18.8193,-46.04758],"residencial vitoria":[-19.00114,-46.31779],"rosario":[-18.99566,-46.31142],"santa cruz":[-18.99747,-46.3217],"tiradentes":[-19.00297,-46.31859],"village vethe":[-18.99737,-46.30135],"alto niteroi":[-18.99366,-46.30538],"novo paraiso":[-19.00562,-46.30699]};
-const APELIDO_B={'j k':'jk','jardim jb':'jb','distrito quintinos':'quintinos','loc quintinos':'quintinos'};
+const APELIDO_B={'j k':'jk','jardim jb':'jb','distrito quintinos':'quintinos','loc quintinos':'quintinos','alto niteri':'alto niteroi','bairro jk':'jk','juscelino kubitschek':'jk','juscelino kubitschek jk':'jk','do rosario':'rosario','village veth':'village vethe','area rural de carmo do paranaiba':'zona rural','area rural':'zona rural','parque bela vista':'bela vista'};
 const nbairro=s=>{const k=norm(s).replace(/\./g,' ').replace(/\s+/g,' ').trim();return APELIDO_B[k]||k};
 // casa: Configurações (endereço e localização) têm prioridade; senão usa o padrão deste arquivo
 const casaXY=()=>{const a=num(S.config.casaLat),b=num(S.config.casaLng);return a&&b?[a,b]:BAIRRO_XY._casa};
@@ -924,6 +924,8 @@ function linksRota(lista){const ends=lista.map(x=>IX.cli.get(x.c)).filter(c=>c&&
 /* ===================== pedido rápido ===================== */
 const PED=new Map();
 const pedKey=cod=>'rota_ped_'+cod;
+const PGR=new Map();const pedGrupo=cod=>{if(!PGR.has(cod)){let g=1;try{g=+localStorage.getItem('rota_pg_'+cod)||1}catch(e){}PGR.set(cod,g)}return PGR.get(cod)};
+const setPedGrupo=(cod,g)=>{PGR.set(cod,g);try{localStorage.setItem('rota_pg_'+cod,g)}catch(e){}};
 function pedido(cod){if(!PED.has(cod)){let v=[];try{v=JSON.parse(localStorage.getItem(pedKey(cod))||'[]')}catch(e){}PED.set(cod,v)}return PED.get(cod)}
 function pedSalvar(cod){try{const v=pedido(cod);v.length?localStorage.setItem(pedKey(cod),JSON.stringify(v)):localStorage.removeItem(pedKey(cod))}catch(e){}}
 function pedAdd(cod,p,q){const v=pedido(cod),x=v.find(i=>i.p===p);if(x)x.q+=q||1;else v.push({p,d:pDesc(p),q:q||1,preco:Math.round((pPreco(p)||0)*100)/100});pedSalvar(cod)}
@@ -936,10 +938,28 @@ function buscaProdutos(q){
 // ações em que o produto participa
 function acoesDoProduto(p){if(!IX.prodAcao){IX.prodAcao=new Map();for(const a of IX.acoes)for(const it of a.itens){if(!IX.prodAcao.has(it.p))IX.prodAcao.set(it.p,[]);IX.prodAcao.get(it.p).push({a,it})}}return IX.prodAcao.get(p)||[]}
 // ganho extra estimado de um item vendido (comissão extra %, R$ por unidade, R$ a cada N un, dobro…)
-function ganhoItem(i){const valor=(i.q||0)*(i.preco||0);let g=0;const det=[];
+/* ===================== comissão do contrato (cláusulas 4 e 5) ===================== */
+// Grupo 1 = preço de tabela · Grupo 2 = desconto de até 5% (com aval da empresa) · Grupo 3 = "venda especial" (desconto acima de 5%,
+// pedido recuperado pelo comercial ou preço especial). Pedido que o cliente manda direto: Grupo 2 (tabela regional) ou 3 (preço especial).
+const COM_TAB={P:[5,2.5,1.25],A:[2.5,1.25,0.62],B:[1.5,0.75,0.37],C:[1,0.5,0.25]};
+const COM_C=/\b(chamex|chamequinho|rino)\b/;
+const COM_B=/(pulverizador.*jacto.*\b20\s*l?\b|jacto.*pulverizador.*\b20\b|\blima\b.*\bkf\b|\bkf\b.*\blima\b|\blima\s+enxada\b)/;
+const COM_A_DESC=new RegExp(['adubadeira','\\balcool\\b','alicate.*cuticula','amaciante','andaime','aquecedor','\\barames?\\b','arco.*serra.*starret','armario.*banheiro','atomizador','\\bbalancas?\\b','barraca.*sanitaria','\\bbaterias?\\b','\\bpilhas?\\b','bebedouro','betoneira','bicicleta','bola.*futebol','\\bbombas?\\b','\\bbotas?\\b','\\bbotinas?\\b','\\bcabos?\\s+(eletric|flex|pp|paralelo)','\\bfios?\\s+(eletric|flex|rigido|paralelo|solido|cabinho)','\\bcabinho\\b','cadeado','camisa.*(clube|time|oficial)','\\bcantil\\b','capacete','\\bcarga\\b.*(sensor|mach)','carneira','carregador.*bateria','carrinho.*bebe','carrinho.*(constru|de mao|mao)','carro.*plataforma','chapa.*aluminio','cilindro.*massa','colher.*pedreiro','compressor','copo.*ideal','cortador.*piso','cortador.*frios','desentupidor.*pia','detergente','desinfetante','disco.*corte.*norton','disjuntor','distanciador','\\bduchas?\\b','chuveiro','eletrodo','\\bescadas?\\b','escova.*(dental|dente|lavar|roupa)','espelho.*multiuso','espingarda','espuma.*(poliuretano|expansiva|\\bpu\\b)','esticador','etiqueta.*termica','fechadura.*alianca','filme.*(agricola|estufa)','filtro.*piscina','fita.*crepe','fogao.*lenha','formicida','garrafa.*termica','garrafao','gaveta.*dinheiro','\\bgerador','grama.*sintetica','graxa.*(sapato|calcad)','\\bguincho','isolante.*termico','jarra.*francesinha','k.?othrine','\\bla\\s+de\\s+aco\\b','lamina.*barbear','\\blampadas?\\b','lapis.*carpinteiro','lavadora.*(alta|pressao)','lepecid','\\blimas?\\b','limpa.*forno','\\blixa.*agua','\\blonas?\\b','macacao','manta.*termica','maquina.*arama','doceira','masseira','marmiteiro','moedor','motobomba','\\bmotor(es)?\\b','motosserra','paleteira','\\bpanelas?\\b','pano.*cafe','\\bpia.*inox','piscina','pistola.*pintura','vulcamax','vulcabrilho','\\bpneus?\\b','\\bcamaras?\\s+(de\\s+)?ar\\b','prego.*(17\\s*x\\s*21|18\\s*x\\s*30)','pulverizador','\\brabeta\\b','ralador.*(industrial|queijo|coco)','rastelo','refil.*aparador','refresqueira','regulador.*gas','rodo.*cafe','sabao.*liquido','havaianas','\\bselas?\\b','artecola','semente.*(milho|braqui|brachi)','\\bserras?\\b','simulador.*caminhada','\\btalhas?\\b','tela.*(alambrado|campestre|tapume)','telefone','onduline','novacor','po\\s+xadrez','torno.*bancada','tratorito','triturador','vassoura.*condor','vibrador.*concreto',
+  // fábricas
+  'angra\\s*sat','arteflex','bandai','\\bbic\\b','\\bccm\\b','\\bcid\\b','copag','\\bcsm\\b','\\bdeca\\b','docol','gillette','giriforte','chebli','\\bhdl\\b','\\bhidra\\b','faber','johnson','sanol','\\bnadir\\b','marinex','\\bngk\\b','\\btrapp\\b','\\bvtec\\b'].join('|'));
+// linhas inteiras do item A (pela categoria do catálogo)
+const COM_A_CAT=/automotivo|moto|colas|adesivos|eletronic|eletrodomest|eletroport|ferramentas eletricas|informatica|audio|video|tvs|cine|foto|oleo|lubrificante|papelaria|escolar e escritorio/;
+const COM_CACHE=new Map();
+function faixaCom(p,d){const k=p||d;if(COM_CACHE.has(k))return COM_CACHE.get(k);
+  const t=norm(d||pDesc(p)),cat=norm(IX.cat.get(p)?.categoria||'');
+  const f=COM_C.test(t)?'C':COM_B.test(t)?'B':(COM_A_DESC.test(t)||COM_A_CAT.test(cat))?'A':'P';COM_CACHE.set(k,f);return f}
+const comPct=(p,d,g)=>COM_TAB[faixaCom(p,d)][(g||1)-1];
+const comItem=(i,g)=>(i.q||0)*(i.preco||0)*comPct(i.p,i.d,g)/100;
+const FAIXA_TXT={P:'5% (normal)',A:'2,5% (lista A do contrato)',B:'1,5% (lista B)',C:'1% (lista C — papel)'};
+function ganhoItem(i,grp){const valor=(i.q||0)*(i.preco||0);let g=0;const det=[];
   for(const {a,it} of acoesDoProduto(i.p)){if(a.ranking||a.reativacao||(a.brinde&&!/R\$/.test(it.premio||'')))continue;
     const t=str(it.premio&&it.premio!==a.tipo?it.premio:a.tipo);let v=0,m;
-    if(/dobro/i.test(t))v=valor*(num(S.config.comissaoBase)||0)/100;
+    if(/dobro/i.test(t))v=valor*comPct(i.p,i.d,grp)/100;
     else if(m=t.match(/R\$\s*([\d.,]+)\s*a cada R\$\s*([\d.,]+)/i))v=Math.floor(valor/num(m[2]))*num(m[1]);
     else if(m=t.match(/R\$\s*([\d.,]+)\s*a cada\s*(\d+)/i))v=Math.floor((i.q||0)/+m[2])*num(m[1]);
     else if(m=t.match(/([\d.,]+)\s*%/))v=valor*num(m[1])/100;
@@ -949,15 +969,16 @@ function ganhoItem(i){const valor=(i.q||0)*(i.preco||0);let g=0;const det=[];
 function htmlPedido(cod){
   const v=pedido(cod),a=analisar(cod),c=IX.cli.get(cod);
   const sug=[...(a.produtos.length?a.repor.slice(0,5).map(x=>({p:x.codigo,d:x.desc,t:'repor'})):topSegmento(segEf(c),5,naoTrab(cod).f).map(x=>({p:x.p,d:x.d,t:'+ vendido'}))),...ofertas(cod).filter(o=>o.item.p).slice(0,5).map(o=>({p:o.item.p,d:o.item.d,t:'ação'}))].filter((x,i,arr)=>!v.some(z=>z.p===x.p)&&arr.findIndex(y=>y.p===x.p)===i);
-  const tot=pedTotal(v),extra=v.reduce((s,i)=>s+ganhoItem(i).g,0);
+  const gp=pedGrupo(cod),tot=pedTotal(v),extra=v.reduce((s,i)=>s+ganhoItem(i,gp).g,0),com=v.reduce((s,i)=>s+comItem(i,gp),0);
   return `<details class="ped" id="pedBox"${v.length?' open':''}><summary>🛒 Montar pedido${v.length?` — ${v.length} itens · <b>${brl(tot)}</b>`:''}</summary>
    <div style="position:relative;margin-top:10px"><input id="pBusca" placeholder="Buscar produto por nome ou código…" autocomplete="off"><div id="pRes" class="pres"></div></div>
    ${sug.length?`<div class="small muted" style="margin:8px 0 4px">Adicionar rápido:</div><div class="chips">${sug.map(x=>`<button class="chip" data-padd="${h(x.p)}" title="${h(x.d)}">+ ${h(curta(x.d))} <span>${x.t}</span></button>`).join('')}</div>`:''}
    ${v.length?`<div class="tw"><table style="margin-top:8px"><thead><tr><th>Produto</th><th class="n">Qtd</th><th class="n">Preço</th><th class="n">Subtotal</th><th></th></tr></thead><tbody>
-     ${v.map((i,k)=>{const gi=ganhoItem(i);return `<tr><td>${h(curta(i.d))}<div class="small muted">${h(i.p)}${gi.g?` · <span style="color:var(--ok)">+${brl(gi.g)} ação ${h(gi.det.join(', '))}</span>`:acoesDoProduto(i.p).length?' · <span style="color:var(--ok)">item de ação</span>':''}</div></td>
+     ${v.map((i,k)=>{const gi=ganhoItem(i,gp);return `<tr><td>${h(curta(i.d))}<div class="small muted">${h(i.p)} · comissão ${fmtN(comPct(i.p,i.d,gp))}%${gi.g?` · <span style="color:var(--ok)">+${brl(gi.g)} ação ${h(gi.det.join(', '))}</span>`:acoesDoProduto(i.p).length?' · <span style="color:var(--ok)">item de ação</span>':''}</div></td>
      <td class="n"><input data-pq="${k}" type="number" min="0" step="1" value="${i.q}" style="width:70px;text-align:right"></td><td class="n"><input data-pp="${k}" type="number" min="0" step="0.01" value="${i.preco}" style="width:96px;text-align:right"></td><td class="n">${brl(i.q*i.preco)}</td><td class="n"><button class="btn sm" data-pdel="${k}">✕</button></td></tr>`}).join('')}
      </tbody></table></div>
-     <div class="row" style="margin-top:8px;align-items:flex-end"><div><div class="small muted">Total do pedido</div><div style="font-size:22px;font-weight:800">${brl(tot)}</div>${extra?`<div class="small" style="color:var(--ok)">Você ganha ~${brl(extra)} a mais com as ações (estimativa)</div>`:''}</div>
+     <div class="row" style="margin-top:8px;align-items:flex-end"><div><div class="small muted">Total do pedido</div><div style="font-size:22px;font-weight:800">${brl(tot)}</div><div class="small">Sua comissão: <b>${brl(com)}</b>${extra?` + <b style="color:var(--ok)">${brl(extra)}</b> das ações`:''} <span class="muted">(estimativa)</span></div>
+       <label style="margin-top:6px">Grupo do pedido (contrato)</label><select data-pg style="width:auto">${[[1,'Grupo 1 — preço de tabela'],[2,'Grupo 2 — desconto de até 5%'],[3,'Grupo 3 — venda especial (desconto > 5%)']].map(([n,t])=>`<option value="${n}"${n===gp?' selected':''}>${t}</option>`).join('')}</select></div>
      <div class="row" style="justify-content:flex-end;flex:2 1 300px"><button class="btn sm" data-pa="copiar">Copiar</button>${linkZap(c.telefone,'x')?`<a class="btn sm zap" target="_blank" rel="noopener" href="${h(linkZap(c.telefone,textoPedido(cod)))}">Enviar no WhatsApp</a>`:''}<button class="btn sm pri" data-pa="venda">✓ Salvar como venda</button><button class="btn sm" data-pa="limpar">Limpar</button></div></div>`:'<div class="small muted" style="margin-top:8px">Busque um produto ou toque numa sugestão para começar.</div>'}
   </details>`}
 function textoPedido(cod){const c=IX.cli.get(cod),v=pedido(cod);
@@ -966,7 +987,7 @@ function textoPedido(cod){const c=IX.cli.get(cod),v=pedido(cod);
 function diaPlanoDe(cod){const hoje=hojeDia(),seg=segundaDe(hoje);for(let i=0;i<5;i++){const d=seg+i;if(d>hoje)break;const g=S.agenda[seg]?.dias?.[d];if(g&&g.itens.some(x=>x.c===cod)&&!regDoDia(cod,d))return {d,modo:g.itens.find(x=>x.c===cod).modo}}return {d:hoje,modo:presencial(IX.cli.get(cod))?'pres':'rem'}}
 function salvarVenda(cod){const v=pedido(cod);if(!v.length)return;const pl=diaPlanoDe(cod);
   const acoes=[...new Set(v.flatMap(i=>acoesDoProduto(i.p).map(x=>x.a.id)))];
-  const reg={cliente:cod,dia:Math.min(pl.d,hojeDia()),plano:pl.d,tipo:pl.modo==='rem'?'remoto':'visita',res:'vendeu',valor:Math.round(pedTotal(v)*100)/100,acoes,itens:v.map(i=>({p:i.p,d:i.d,q:i.q,preco:i.preco})),obs:''};
+  const reg={cliente:cod,dia:Math.min(pl.d,hojeDia()),plano:pl.d,tipo:pl.modo==='rem'?'remoto':'visita',res:'vendeu',valor:Math.round(pedTotal(v)*100)/100,grupo:pedGrupo(cod),acoes,itens:v.map(i=>({p:i.p,d:i.d,q:i.q,preco:i.preco})),obs:''};
   S.contatos=S.contatos.filter(k=>!(k.cliente===cod&&k.res&&(k.plano??k.dia)===pl.d));S.contatos.push(reg);salvar('contatos');
   IX.ultContato.set(cod,Math.max(IX.ultContato.get(cod)??-1,reg.dia));IX.ultReg.set(cod,reg);IX.ofertas.delete(cod);CACHE.delete(cod);
   PED.set(cod,[]);pedSalvar(cod);toast(converterProsp(cod)?`Venda de ${brl(reg.valor)} registrada — virou cliente da base`:`Venda de ${brl(reg.valor)} registrada`)}
@@ -980,7 +1001,7 @@ function ligarPedido(cod){
     if(a==='copiar')copiar(textoPedido(cod));
     if(a==='limpar'&&await confirmar('Limpar o pedido?','','Limpar')){PED.set(cod,[]);pedSalvar(cod);re()}
     if(a==='venda'&&await confirmar(`Registrar venda de ${brl(pedTotal(pedido(cod)))}?`,'A venda entra na meta, nos ganhos e no relatório da semana.','Registrar venda')){salvarVenda(cod);re()}};
-  box.onchange=e=>{const q=e.target.dataset.pq,p=e.target.dataset.pp;if(q==null&&p==null)return;const v=pedido(cod),i=v[+(q??p)];if(q!=null)i.q=Math.max(0,num(e.target.value));else i.preco=Math.max(0,num(e.target.value));pedSalvar(cod);re()}}
+  box.onchange=e=>{if(e.target.matches('[data-pg]')){setPedGrupo(cod,+e.target.value);re();return}const q=e.target.dataset.pq,p=e.target.dataset.pp;if(q==null&&p==null)return;const v=pedido(cod),i=v[+(q??p)];if(q!=null)i.q=Math.max(0,num(e.target.value));else i.preco=Math.max(0,num(e.target.value));pedSalvar(cod);re()}}
 
 /* ===================== painel de ganhos ===================== */
 function periodoGanhos(v){const h0=hojeDia(),d=new Date(h0*864e5),y=d.getUTCFullYear(),m=d.getUTCMonth();
@@ -988,16 +1009,18 @@ function periodoGanhos(v){const h0=hojeDia(),d=new Date(h0*864e5),y=d.getUTCFull
   if(v==='mesant'){return [DT(y,m,1),DT(y,m+1,1)-1,'Mês passado']}
   return [DT(y,m+1,1),DT(y,m+2,1)-1,'Este mês']}
 function renderGanhos(){
-  const [ini,fim,nome]=periodoGanhos($('#gPer').value),base=num(S.config.comissaoBase);
+  const [ini,fim,nome]=periodoGanhos($('#gPer').value),base=num(S.config.comissaoBase)||5;
   const regs=S.contatos.filter(k=>k.res==='vendeu'&&(k.plano??k.dia)>=ini&&(k.plano??k.dia)<=fim);
   const tot=regs.reduce((s,k)=>s+(k.valor||0),0),nCli=new Set(regs.map(k=>k.cliente)).size;
   const porA=new Map();let extra=0;
-  for(const k of regs)for(const i of k.itens||[]){const g=ganhoItem(i);extra+=g.g;for(const {a} of acoesDoProduto(i.p)){const x=porA.get(a)||{a,valor:0,q:0,g:0};x.valor+=i.q*i.preco;x.q+=i.q;porA.set(a,x)}
+  for(const k of regs)for(const i of k.itens||[]){const g=ganhoItem(i,k.grupo);extra+=g.g;for(const {a} of acoesDoProduto(i.p)){const x=porA.get(a)||{a,valor:0,q:0,g:0};x.valor+=i.q*i.preco;x.q+=i.q;porA.set(a,x)}
     if(g.g){const a0=acoesDoProduto(i.p).find(z=>g.det.includes(z.a.fornecedor));if(a0)porA.get(a0.a).g+=g.g}}
   // Chamex: R$ 30 por cliente reativado que comprou item da ação
   const cham=IX.acoes.find(a=>a.reativacao);let nReat=0;
   if(cham){const vistos=new Set();for(const k of regs)if(!vistos.has(k.cliente)&&(k.itens||[]).some(i=>cham.P.has(i.p))&&ofertas(k.cliente).some(o=>o.a===cham&&o.tipo==='reativação')){vistos.add(k.cliente);nReat++}}
-  const comBase=base?tot*base/100:null,reat=nReat*30,totalGanho=(comBase||0)+extra+reat;
+  let comBase=0,semItensV=0;const porF={P:0,A:0,B:0,C:0};
+  for(const k of regs){if((k.itens||[]).length){for(const i of k.itens){const c=comItem(i,k.grupo);comBase+=c;porF[faixaCom(i.p,i.d)]+=c}}else{const c=(k.valor||0)*base/100*([1,.5,.25][(k.grupo||1)-1]);comBase+=c;semItensV+=k.valor||0}}
+  const reat=nReat*30,totalGanho=comBase+extra+reat;
   const semItens=regs.filter(k=>!(k.itens||[]).length).length;
   const metaP=$('#gPer').value==='semana'?+S.config.metaSemana||6000:(+S.config.metaMes||(+S.config.metaSemana||6000)*4);
   const porCid=new Map();for(const k of regs){const c=IX.cli.get(k.cliente),l=c?localidade(c):'—';porCid.set(l,(porCid.get(l)||0)+(k.valor||0))}
@@ -1005,12 +1028,16 @@ function renderGanhos(){
   $('#gConteudo').innerHTML=`
    <div class="kpis">
     <div class="kpi"><small>Vendido — ${h(nome)}</small><b>${brl(tot)}</b><div class="small muted">${regs.length} pedido(s) · ${nCli} cliente(s)</div></div>
-    <div class="kpi"><small>Comissão base</small><b>${comBase!=null?brl(comBase):'—'}</b><div class="small muted">${base?fmtN(base)+'% sobre o vendido':'informe sua % em Configurações'}</div></div>
+    <div class="kpi"><small>Comissão (contrato)</small><b>${brl(comBase)}</b><div class="small muted">${tot?fmtN(Math.round(comBase/tot*1000)/10)+'% médio':'5% · 2,5% · 1,25% por grupo'}</div></div>
     <div class="kpi" style="border-color:var(--gold)"><small>Extra das ações</small><b>${brl(extra+reat)}</b><div class="small muted">${nReat?nReat+' reativado(s) Chamex · ':''}estimativa</div></div>
     <div class="kpi" style="border-color:var(--navy)"><small>Total estimado</small><b>${brl(totalGanho)}</b></div>
    </div>
    <div class="small">Meta ${$('#gPer').value==='semana'?'semanal':'mensal'} ${brl(metaP)} — <b>${Math.round(tot/metaP*100)}%</b></div><div class="bar" style="height:10px"><i style="width:${Math.min(100,tot/metaP*100)}%"></i></div>
    ${semItens?`<div class="small muted" style="margin-top:8px">${semItens} venda(s) registrada(s) sem itens: entram no total, mas não no cálculo das ações. Use o 🛒 pedido para registrar com itens.</div>`:''}
+   <h3>Como sua comissão foi calculada</h3>
+   <div class="small">${Object.entries(porF).filter(([,v])=>v).map(([f,v])=>`<div style="display:flex;justify-content:space-between;max-width:460px"><span>Itens ${h(FAIXA_TXT[f])}</span><b>${brl(v)}</b></div>`).join('')}
+   ${semItensV?`<div class="muted" style="margin-top:4px">${brl(semItensV)} vendidos sem itens registrados: calculado a ${fmtN(base)}% (Grupo 1). Use o 🛒 Pedido para o valor exato.</div>`:''}
+   <div class="muted" style="margin-top:6px">Contrato: Grupo 1 = 5% (preço de tabela) · Grupo 2 = 2,5% (desconto até 5%) · Grupo 3 = 1,25% (venda especial). Lista A = 2,5/1,25/0,62% · Lista B (Pulverizador Jacto 20L, Lima KF) = 1,5/0,75/0,37% · Lista C (Papel Chamex, Rino) = 1/0,5/0,25%. Devoluções, cancelamentos e inadimplência são estornados no mês.</div></div>
    <h3>Ganho por ação</h3>
    ${porA.size?`<div class="tw"><table><thead><tr><th>Ação</th><th>Prêmio</th><th class="n">Vendido</th><th class="n">Qtd</th><th class="n">Você ganha</th><th class="n">Até</th></tr></thead><tbody>${[...porA.values()].sort((x,y)=>y.g-x.g||y.valor-x.valor).map(x=>`<tr><td>${h(x.a.fornecedor)}</td><td class="small">${h(x.a.tipo)}</td><td class="n">${brl(x.valor)}</td><td class="n">${fmtN(x.q)}</td><td class="n"><b>${x.g?brl(x.g):x.a.ranking?'ranking':'—'}</b></td><td class="n">${fmtDia(x.a.fim)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="small muted">Nenhum item de ação vendido no período (com itens registrados).</div>'}
    ${rank.length?`<h3>Campanhas de ranking — seu faturamento no período de cada uma</h3>${rank.map(r=>`<div class="small" style="margin:4px 0"><b>${h(r.a.fornecedor)}</b>: ${brl(r.v)} <span class="muted">— ${h(r.a.tipo)} · até ${fmtDia(r.a.fim)}</span></div>`).join('')}`:''}
