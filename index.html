@@ -454,7 +454,7 @@ const TABS=['clientes','vendas','catalogo','contatos','notas','acoes','agenda','
 /* ===================== índices e análise ===================== */
 let IX=null;const CACHE=new Map();
 function indexar(){
-  CACHE.clear();
+  CACHE.clear();if(typeof QTIP!=='undefined'){QTIP.clear();CATSEG.clear();FAMPACK=null}
   {const ex=new Set(S.clientes.map(c=>c.codigo));for(const p of S.prospects||[])if(!ex.has(p.codigo))S.clientes.push({...p});for(const n of S.novos||[])if(!ex.has(n.codigo)){S.clientes.push(n);ex.add(n.codigo)}
    if(typeof EDPEND!=='undefined'&&EDPEND){aplicarEdicoes(EDPEND);EDPEND=null}
    const reais=new Set(S.clientes.filter(c=>!/^P/.test(c.codigo)).map(c=>c.codigo));
@@ -1253,18 +1253,43 @@ let tpb;$('#pBuscaP').oninput=()=>{clearTimeout(tpb);tpb=setTimeout(renderProsp,
 /* ===================== novo cliente (porta a porta) com pedido pronto ===================== */
 // quantidade típica de cada produto num pedido de lojas daquele tipo (mediana da quantidade por linha de venda)
 const QTIP=new Map();
+// quantidade de PRIMEIRO pedido: o 1º quartil do que lojas do tipo compram por vez (conservador, cliente novo)
 function qtdTipica(seg,p){const k=seg+'|'+p;if(QTIP.has(k))return QTIP.get(k);const qs=[],lim=hojeDia()-730;
   for(const c of S.clientes){if(c.prospect||c.manual||(seg&&segEf(c)!==seg))continue;for(const v of IX.vpc.get(c.codigo)||[])if(v.produto===p&&v.dia>=lim&&v.qtd>0)qs.push(v.qtd)}
-  qs.sort((a,b)=>a-b);const q=qs.length?Math.max(1,Math.round(qs[Math.floor(qs.length/2)])):1;QTIP.set(k,q);return q}
+  qs.sort((a,b)=>a-b);const q=qs.length?Math.max(1,Math.round(qs[Math.floor((qs.length-1)/4)])):1;QTIP.set(k,q);return q}
+// o que a loja REVENDE (categorias principais do tipo de loja) x o que ela só USA (papel, limpeza, escritório…)
+const CATSEG=new Map();
+function catsPrincipais(seg){if(CATSEG.has(seg))return CATSEG.get(seg);const {n}=perfilSeg(seg&&perfilSeg(seg).lojas>=5?seg:''),m=new Map();let t=0;
+  for(const [pp,q] of n){const c=IX.cat.get(pp)?.categoria;if(!c)continue;m.set(c,(m.get(c)||0)+q);t+=q}
+  const ord=[...m.entries()].sort((a,b)=>b[1]-a[1]),core=new Set();let ac=0;for(const [c,q] of ord){if(ac>=t*.85&&q<t*.04)break;core.add(c);ac+=q}
+  CATSEG.set(seg,core);return core}
+const USO_RX=/papel (chamex|chamequinho|a4|sulfite|oficio)|bobina termica|etiqueta termica|\bresma\b|papel higien|papel toalha|guardanapo|copo descart|saco (de )?lixo|detergente|desinfetante|agua sanitaria|sabao|limpador|esponja|pano (de )?(chao|prato|multiuso|limp)|vassoura|rodo\b|cafe\b|acucar|filtro (de )?papel|caneta|grampeador|clips|fita adesiva transp|toner|cartucho/;
+// o que cada tipo de loja REVENDE dentre esses itens (o resto é consumo da própria loja)
+const REVENDE={'Papelaria':/papel|caneta|grampeador|clips|fita adesiva|toner|cartucho|etiqueta|bobina|resma/,'Supermercado / Mercearia':/./,'Utilidades / Variedades':/detergente|desinfetante|agua sanitaria|sabao|limpador|esponja|pano|vassoura|rodo|saco (de )?lixo|copo descart|guardanapo|papel (higien|toalha)/,'Farmácia':/papel higien|papel toalha|sabao|esponja/};
+function usoLoja(seg,p,d){if(!seg)return false;const t=norm(d);if(!USO_RX.test(t))return false;const r=REVENDE[seg];return !(r&&r.test(t))}
+// mesma linha em embalagem menor (ex.: Chamex A4 10x500 -> 5x500 -> 500 folhas)
+let FAMPACK=null;
+const chavePack=d=>norm(d).replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w&&!/^\d/.test(w)&&!/^(x|c\d+|cx|un|pct|branco|branca|azul|amarelo|verde|rosa|multicor|folhas?|catalogo)$/.test(w)).slice(0,3).join(' ');
+function embalagemMenor(p,d,teto){if(!FAMPACK){FAMPACK=new Map();for(const c of S.catalogo){if(!(c.preco>0))continue;const k=chavePack(c.descricao);if(!k)continue;if(!FAMPACK.has(k))FAMPACK.set(k,[]);FAMPACK.get(k).push(c)}}
+  const l=(FAMPACK.get(chavePack(d))||[]).filter(c=>c.codigo!==p&&c.preco<(pPreco(p)||1e9)&&/a4|a3|carta|oficio/.test(norm(c.descricao))===/a4|a3|carta|oficio/.test(norm(d))&&(norm(d).match(/\ba4\b|\ba3\b|carta|oficio/)||[''])[0]===(norm(c.descricao).match(/\ba4\b|\ba3\b|carta|oficio/)||[''])[0]);
+  if(!l.length)return null;l.sort((a,b)=>Math.abs(a.preco-teto)-Math.abs(b.preco-teto));return l[0]}
 let NPED=[],NREM=new Set();
 function montarPedidoPronto(){const seg=$('#nSeg').value,alvo=+$('#nTam').value,foco=$('#nFoco').value,q=norm($('#nBusca').value);
   let cand=topSegmento(seg,250).filter(x=>x.preco&&!NREM.has(x.p)&&(!q||norm(x.d).includes(q)));
-  const acaoDe=p=>acoesDoProduto(p).filter(z=>!z.a.ranking&&!z.a.reativacao).length?1:0;
-  const pont=x=>x.share*100+(foco==='acoes'?acaoDe(x.p)*40:0)+(foco==='comissao'?(faixaCom(x.p,x.d)==='P'?25:0):0);
+  const acaoDe=p=>acoesDoProduto(p).filter(z=>!z.a.ranking).length?1:0;
+  const pont=x=>x.share*100+(foco==='acoes'?acaoDe(x.p)*40:0)+(foco==='comissao'?(faixaCom(x.p,x.d)==='P'?25:0):0)-(usoLoja(seg,x.p,x.d)?15:0);
   cand.sort((a,b)=>pont(b)-pont(a));
-  const ped=[];let tot=0;
-  for(const x of cand){if(tot>=alvo&&ped.length>=5)break;const qt=qtdTipica(seg,x.p),sub=qt*x.preco;if(sub>alvo*.6&&ped.length)continue;
-    ped.push({p:x.p,d:x.d,q:qt,preco:Math.round(x.preco*100)/100,share:x.share});tot+=sub;if(ped.length>=25)break}
+  const ped=[],vistos=new Set();let tot=0,nUso=0;
+  for(const x of cand){if(tot>=alvo&&ped.length>=5)break;
+    let it={p:x.p,d:x.d,q:qtdTipica(seg,x.p),preco:Math.round(x.preco*100)/100,share:x.share};
+    if(usoLoja(seg,x.p,x.d)){if(nUso>=2)continue;
+      const ac=acoesDoProduto(x.p).filter(z=>!z.a.ranking);
+      if(ac.length&&it.preco<=alvo*.3){it.q=1;it.nota=ac.some(z=>z.a.reativacao)?'uso da loja · 1 caixa já conta na ação':'uso da loja · quantidade mínima da ação'}
+      else{const m=embalagemMenor(x.p,x.d,alvo*.06);if(m)it={...it,p:m.codigo,d:m.descricao,preco:Math.round(m.preco*100)/100};it.q=1;it.nota='uso da loja (não é revenda) · embalagem menor'}
+      it.uso=true;nUso++}
+    if(vistos.has(it.p))continue;
+    const sub=it.q*it.preco;if(it.uso&&sub>alvo*.3)continue;if(sub>alvo*(it.uso?.3:.35)&&ped.length){if(it.q>1){it.q=Math.max(1,Math.floor(alvo*.35/it.preco))}else continue}
+    vistos.add(it.p);ped.push(it);tot+=it.q*it.preco;if(ped.length>=25)break}
   NPED=ped}
 function renderNovo(){
   const segs=[...new Set(SEGS.concat(S.clientes.map(segEf).filter(Boolean)))].filter(sg=>perfilSeg(sg).lojas>=3).sort((a,b)=>perfilSeg(b).lojas-perfilSeg(a).lojas);
@@ -1273,7 +1298,7 @@ function renderNovo(){
   montarPedidoPronto();renderNPed();renderRecentes()}
 function renderNPed(){const v=NPED,tot=pedTotal(v),com=v.reduce((s,i)=>s+comItem(i,1),0),ex=v.reduce((s,i)=>s+ganhoItem(i,1).g,0),seg=$('#nSeg').value;
   $('#nPed').innerHTML=v.length?`<div class="tw"><table><thead><tr><th>Produto</th><th class="n">Qtd</th><th class="n">Preço</th><th class="n">Subtotal</th><th></th></tr></thead><tbody>
-   ${v.map((i,k)=>{const ac=acoesDoProduto(i.p).filter(z=>!z.a.ranking&&!z.a.reativacao)[0];return `<tr><td>${h(curta(i.d))}<div class="small muted">${h(i.p)} · ${Math.round(i.share*100)}% das lojas ${seg?'do tipo':''} compram · comissão ${fmtN(comPct(i.p,i.d,1))}%${ac?` · <span style="color:var(--ok)">ação ${h(ac.a.fornecedor.split(' (')[0])}: ${h(ac.it.premio&&ac.it.premio!==ac.a.tipo?ac.it.premio:ac.a.tipo)}</span>`:''}</div></td>
+   ${v.map((i,k)=>{const ac=acoesDoProduto(i.p).filter(z=>!z.a.ranking&&!z.a.reativacao)[0];return `<tr><td>${h(curta(i.d))}<div class="small muted">${h(i.p)} · ${i.nota?`<b>${h(i.nota)}</b> · `:''}${Math.round(i.share*100)}% das lojas ${seg?'do tipo':''} compram · comissão ${fmtN(comPct(i.p,i.d,1))}%${ac?` · <span style="color:var(--ok)">ação ${h(ac.a.fornecedor.split(' (')[0])}: ${h(ac.it.premio&&ac.it.premio!==ac.a.tipo?ac.it.premio:ac.a.tipo)}</span>`:''}</div></td>
     <td class="n"><input data-nq="${k}" type="number" min="0" step="1" value="${i.q}" style="width:70px;text-align:right"></td><td class="n">${brl(i.preco)}</td><td class="n">${brl(i.q*i.preco)}</td><td class="n"><button class="btn sm" data-nrem="${h(i.p)}" title="Tirar e pôr outro no lugar">✕</button></td></tr>`}).join('')}
    </tbody></table></div>
    <div class="row" style="margin-top:10px;align-items:flex-end"><div><div class="small muted">Pedido pronto · ${v.length} itens</div><div style="font-size:22px;font-weight:800">${brl(tot)}</div><div class="small">Sua comissão (Grupo 1): <b>${brl(com)}</b>${ex?` + <b style="color:var(--ok)">${brl(ex)}</b> das ações`:''} <span class="muted">(estimativa)</span></div></div>
