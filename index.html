@@ -63,7 +63,7 @@ label{font-size:13px;color:var(--muted);display:block;margin:8px 0 4px;font-weig
 .cli:hover{background:var(--brand2)}.cli.sel{background:var(--brand2);border-color:var(--brand)}
 .cli b{display:block}
 .badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;background:var(--chip);color:var(--muted)}
-.b-ativo{background:var(--okbg);color:var(--ok)}.b-esfriando{background:var(--warnbg);color:var(--warn)}.b-inativo{background:var(--badbg);color:var(--bad)}.b-pres{background:var(--navy2);color:var(--navy)}.b-novo{background:#fff4cc;color:#7a5a00}
+.b-ativo{background:var(--okbg);color:var(--ok)}.b-esfriando{background:var(--warnbg);color:var(--warn)}.b-inativo{background:var(--badbg);color:var(--bad)}.b-pres{background:var(--navy2);color:var(--navy)}.b-novo{background:#fff4cc;color:#7a5a00}.b-mg{background:#fdf1c7;color:#8a6200}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0}
 .kpi{background:var(--bg);border-radius:12px;padding:10px 12px;border-left:4px solid var(--brand)}.kpi small{color:var(--muted);display:block;font-size:12px;font-weight:600}.kpi b{font-size:18px;font-variant-numeric:tabular-nums}
 h2{margin:0;font-size:21px;letter-spacing:-.2px}h3{margin:20px 0 8px;font-size:15.5px;color:var(--navy)}
@@ -251,7 +251,7 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
         <div class="row" style="margin-top:12px">
           <div style="flex:2 1 220px"><label for="nSeg">Tipo de loja</label><select id="nSeg"></select></div>
           <div><label for="nTam">Produtos sugeridos</label><select id="nTam"><option value="10" selected>10 produtos</option><option value="20">20 produtos</option><option value="30">30 produtos</option><option value="50">50 produtos</option></select></div>
-          <div><label for="nFoco">Montar com</label><select id="nFoco"><option value="giro">Mais vendidos do tipo de loja</option><option value="acoes">Prioridade para as ações do mês</option><option value="comissao">Prioridade para comissão cheia (5%)</option></select></div>
+          <div><label for="nFoco">Montar com</label><select id="nFoco"><option value="giro">Mais vendidos do tipo de loja</option><option value="acoes">Prioridade para as ações do mês</option><option value="comissao">Prioridade para comissão cheia (5%)</option><option value="minas">Prioridade para os mais vendidos de Minas</option></select></div>
         </div>
         <div class="row" style="margin-top:6px"><input id="nBusca" placeholder="Filtrar itens: ex. torneira, lâmpada, lona…" autocomplete="off"></div>
         <div id="nPed" style="margin-top:12px"></div>
@@ -299,7 +299,7 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
   <!-- CATALOGO -->
   <section id="v-catalogo" class="hide">
     <div class="card">
-      <div class="row"><input id="cBusca" placeholder="Buscar produto, código, marca…"><select id="cCat"><option value="">Todas categorias</option></select><select id="cInd"><option value="">Todas as indústrias</option></select><select id="cCamp"><option value="">Todos os produtos</option><option value="camp">Só itens de campanha</option></select></div>
+      <div class="row"><input id="cBusca" placeholder="Buscar produto, código, marca…"><select id="cCat"><option value="">Todas categorias</option></select><select id="cInd"><option value="">Todas as indústrias</option></select><select id="cCamp"><option value="">Todos os produtos</option><option value="camp">Só itens de campanha</option><option value="mg">🏆 Top 300 Minas</option></select></div>
       <div class="row" style="margin-top:8px"><select id="cPerfil"><option value="">Para qualquer cliente</option></select><label style="display:flex;gap:6px;align-items:center;margin:0;flex:0 0 auto;color:var(--ink)"><input type="checkbox" id="cMostrar" style="width:auto"> Mostrar para o cliente (esconde comissão)</label></div>
       <div class="tw" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Produto</th><th>Indústria</th><th>Categoria</th><th class="n">Preço</th><th class="n so-rep">Comissão</th><th class="n so-rep">Clientes</th></tr></thead><tbody id="cTab"></tbody></table></div>
       <div class="muted small" id="cInfo" style="margin-top:8px"></div>
@@ -452,13 +452,13 @@ const CFG0={codigoRCA:'37223',vendedor:'Marcus',secretaria:'Claudia',empresa:'Ta
  tplReativarPres:'{saudacao}, {contato}! Aqui é a {secretaria}, secretária do {vendedor}. Faz um tempo que ele não passa aí e está montando a rota dessa semana. Posso agendar uma visita dele? Ele leva as condições atuais de {produtos_repor}.',
  tplProspect:'{saudacao}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor}, representante da {empresa} aqui na região. Atendemos lojas de {cidade} com entrega e condições de atacado. Este mês temos condição especial em {acoes}, e entre os que mais saem em lojas como a sua estão {sugestoes}. Posso te mandar os preços ou agendar uma visita do {vendedor}?',
  colaPresencial:'',colaRemoto:''};
-const S={clientes:[],vendas:[],catalogo:[],contatos:[],notas:{},acoes:[],agenda:{},prospects:[],novos:[],config:{...CFG0}};
-const TABS=['clientes','vendas','catalogo','contatos','notas','acoes','agenda','prospects','novos','config'];
+const S={clientes:[],vendas:[],catalogo:[],contatos:[],notas:{},acoes:[],agenda:{},prospects:[],novos:[],topmg:[],config:{...CFG0}};
+const TABS=['clientes','vendas','catalogo','contatos','notas','acoes','agenda','prospects','novos','topmg','config'];
 
 /* ===================== índices e análise ===================== */
 let IX=null;const CACHE=new Map();
 function indexar(){
-  CACHE.clear();if(typeof QTIP!=='undefined'){QTIP.clear();CATSEG.clear();FAMPACK=null}
+  CACHE.clear();TOPMG=null;if(typeof QTIP!=='undefined'){QTIP.clear();CATSEG.clear();FAMPACK=null}
   {const ex=new Set(S.clientes.map(c=>c.codigo));for(const p of S.prospects||[])if(!ex.has(p.codigo))S.clientes.push({...p});for(const n of S.novos||[])if(!ex.has(n.codigo)){S.clientes.push(n);ex.add(n.codigo)}
    if(typeof EDPEND!=='undefined'&&EDPEND){aplicarEdicoes(EDPEND);EDPEND=null}
    const reais=new Set(S.clientes.filter(c=>!/^P/.test(c.codigo)).map(c=>c.codigo));
@@ -626,6 +626,7 @@ function roteiro(c){
   if(a.repor.length){L.push('','HORA DE REPOR (oferecer primeiro)');a.repor.slice(0,8).forEach(x=>L.push(`- ${curta(x.desc)} — leva ~${fmtN(Math.round(x.qMed))} un. a cada ~${Math.round(x.int)} dias; última ${fmtDia(x.ult)}${x.preco?'; preço ref. '+brl(x.preco):''}`))}
   const ofs=ofertas(c.codigo);
   if(ofs.length){L.push('','AÇÕES DO MÊS (oferecer — comissão/prêmio extra)');ofs.slice(0,8).forEach(o=>L.push(`- ${curta(o.item.d)} [${o.a.fornecedor}] — ${o.motivo}; ${o.a.oferta?'':'ganho: '}${premioTxt(o)}; até ${fmtDia(o.a.fim)}${o.item.preco?'; preço '+brl(o.item.preco):''}`))}
+  const mgR=topMinas(c.codigo,6);if(mgR.length){L.push('','MAIS VENDIDOS DE MINAS QUE ELE AINDA NÃO COMPRA (Top 300 Tambasa MG)');mgR.forEach(x=>L.push(`- ${curta(x.d)} — ${x.motivo}${pPreco(x.p)?'; preço '+brl(pPreco(x.p)):''}`))}
   if(a.produtos.length){L.push('','O QUE COSTUMA COMPRAR');a.produtos.slice(0,10).forEach(x=>L.push(`- ${curta(x.desc)} — ${x.n}x, total ${fmtN(x.qtd)} un.; última ${fmtDia(x.ult)}${x.pago?'; pagou '+brl(x.pago):''}`))}
   if(a.parou.length){L.push('','PAROU DE COMPRAR (perguntar o motivo / se está comprando de outro)');a.parou.slice(0,6).forEach(x=>L.push(`- ${curta(x.desc)} — comprava a cada ~${Math.round(x.int)} dias, última ${fmtDia(x.ult)}`))}
   if(sug.length){L.push('',sug[0].seg?`MAIS VENDIDOS PARA ${(segEf(c)||'lojas como esta').toUpperCase()} (levar na apresentação)`:'OPORTUNIDADES (clientes parecidos compram, ele não)');sug.forEach(x=>L.push(`- ${curta(x.desc)}${x.preco?' — '+brl(x.preco):''}`))}
@@ -651,7 +652,7 @@ function renderLista(){
     <span class="small muted">${h(c.codigo)} · ${h(c.cidade||'—')} · últ. ${fmtDia(a.ult)}</span> ${c.prospect?'<span class="badge b-novo">🆕 prospect</span>':`<span class="badge b-${a.status.replace(' ','-')}">${a.status}</span>`}${presencial(c)?' <span class="badge b-pres">presencial</span>':''}${segEf(c)?` <span class="badge">${h(segEf(c))}${segSug(c)?' ?':''}</span>`:''}</div>`}).join('')}
 
 function abrirFicha(cod){
-  selCli=cod;const c=IX.cli.get(cod);if(!c)return;const a=analisar(cod),sug=sugestoes(cod),pres=presencial(c),ofs=ofertas(cod),ntL=c.naoTrab||[];
+  selCli=cod;const c=IX.cli.get(cod);if(!c)return;const a=analisar(cod),sug=sugestoes(cod),pres=presencial(c),ofs=ofertas(cod),ntL=c.naoTrab||[],mgF=topMinas(cod,8);
   const msg=mensagem(c,a),zap=linkZap(c.telefone,msg);
   const ks=S.contatos.filter(k=>k.cliente===cod).sort((x,y)=>y.dia-x.dia);
   const tabP=(lst,cols)=>`<div class="tw"><table><thead><tr>${cols.map(x=>`<th class="${x[2]||''}">${x[0]}</th>`).join('')}</tr></thead><tbody>${lst.map(x=>`<tr>${cols.map(k=>`<td class="${k[2]||''}">${k[1](x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -678,6 +679,7 @@ function abrirFicha(cod){
    ${htmlPedido(cod)}
    ${a.repor.length?`<div class="hl"><h3 style="margin-top:0">Hora de repor</h3>${tabP(a.repor.slice(0,10),[['Produto',x=>h(curta(x.desc))+`<div class="small muted">${h(x.codigo)}</div>`],['Leva',x=>fmtN(Math.round(x.qMed)),'n'],['A cada',x=>Math.round(x.int)+' d','n'],['Última',x=>fmtDia(x.ult),'n'],['Pagou',x=>x.pago?brl(x.pago):'—','n'],['Preço ref.',x=>x.preco?brl(x.preco):'—','n']])}</div>`:''}
    ${ofs.length?`<div class="hl" style="border-color:var(--ok);margin-top:14px"><h3 style="margin-top:0">Ações do mês — ofereça (você ganha extra)</h3>${tabP(ofs.slice(0,10),[['Oferecer',x=>h(curta(x.item.d))+`<div class="small muted">${h(x.item.cod||x.item.p||'')} · ${h(x.a.fornecedor)}</div>`],['Por quê',x=>`<span class="badge ${x.tipo==='similar'?'':'b-ativo'}">${h(x.tipo)}</span> <span class="small">${h(x.motivo)}</span>`],['Você ganha',x=>h(premioTxt(x)),'n'],['Até',x=>fmtDia(x.a.fim),'n'],['Preço',x=>x.item.preco?brl(x.item.preco):'—','n'],['',x=>`<button class="btn sm" data-nt="${ofs.indexOf(x)}" title="Ele não trabalha com isso — não oferecer mais">não trabalha</button>`,'n']])}</div>`:''}
+   ${mgF.length?`<div class="hl" style="border-color:#c9a227;margin-top:14px"><h3 style="margin-top:0">🏆 Top Minas que ele ainda não compra</h3><div class="small muted" style="margin-bottom:6px">Dos 300 itens mais vendidos da Tambasa em Minas, os que combinam com o que ele já trabalha.</div>${tabP(mgF,[['Oferecer',x=>h(curta(x.d))+`<div class="small muted">${h(x.cod)} · comissão ${fmtN(comPct(x.p,x.d,1))}%${acoesDoProduto(x.p).length?' · <span style="color:var(--ok)">em ação/encarte</span>':''}</div>`],['Por quê',x=>`<span class="small">${h(x.motivo)}</span>`],['Preço',x=>pPreco(x.p)?brl(pPreco(x.p)):'—','n'],['',x=>`<button class="btn sm" data-ntm="${mgF.indexOf(x)}" title="Ele não trabalha com isso — não oferecer mais">não trabalha</button>`,'n']])}</div>`:''}
    ${ntL.length?`<div class="small muted" style="margin-top:8px">Não trabalha com (não é oferecido): ${ntL.map((x,i)=>`${h(x.txt||x.f||x.a)} <a href="#" data-unt="${i}">desfazer</a>`).join(' · ')}</div>`:''}
    <h3>O que ele compra</h3>
    ${a.produtos.length?tabP(a.produtos.slice(0,25),[['Produto',x=>h(curta(x.desc))+`<div class="small muted">${h(x.codigo)} · comissão ${fmtN(comPct(x.codigo,x.desc,1))}%</div>`],['Vezes',x=>x.n,'n'],['Qtd total',x=>fmtN(x.qtd),'n'],['Última',x=>fmtDia(x.ult),'n'],['Pagou',x=>x.pago?brl(x.pago):'—','n'],['Preço ref.',x=>x.preco?brl(x.preco):'—','n']]):'<div class="muted">Sem histórico de compras.</div>'}
@@ -706,6 +708,7 @@ function abrirFicha(cod){
   $('#fContEdit').onchange=e=>{c.contato=e.target.value.trim();c.contato_manual=true;salvar('clientes');CACHE.delete(cod);abrirFicha(cod);toast('Contato salvo')};
   $$('#ficha [data-nt]').forEach(b=>b.onclick=()=>{const o=ofs[+b.dataset.nt];marcarNaoTrab(cod,[ntDeOferta(o)]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')});
   $$('#ficha [data-nts]').forEach(b=>b.onclick=()=>{const x=sug[+b.dataset.nts];marcarNaoTrab(cod,[{f:famKey(x.desc),txt:curta(x.desc)}]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')});
+  $$('#ficha [data-ntm]').forEach(b=>b.onclick=()=>{const x=mgF[+b.dataset.ntm];marcarNaoTrab(cod,[{f:famKey(x.d),txt:curta(x.d)}]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')});
   $$('#ficha [data-unt]').forEach(b=>b.onclick=e=>{e.preventDefault();desmarcarNaoTrab(cod,+b.dataset.unt);abrirFicha(cod)});
   ligarPedido(cod);
   $('#cpMsg').onclick=()=>copiar($('#fMsg').value);
@@ -816,9 +819,30 @@ function ofertasSegmento(cod){const c=IX.cli.get(cod),seg=c?segEf(c):'',base=seg
     res.push({a,item:best.it,tipo:'do segmento',s:(30+pct+Math.min(tot/lojas*10,20)+(a.reativacao?25:0))*(a.oferta?.8:1),
       motivo:a.reativacao?`cliente NOVO na Chamex conta R$ 30 — papel sai em ${pct}% das lojas ${base?'de '+base:''}`:`${pct}% das lojas ${base?'de '+base:'que atendemos'} compram este item`})}
   return limEnc(res.sort((x,y)=>y.s-x.s),1)}
+// TOP 300 MINAS (lista da Karem, Tambasa MG): mais vendidos do estado que o cliente ainda não compra
+let TOPMG=null;
+function topMG(){if(!TOPMG){TOPMG=new Map();for(const x of S.topmg||[])TOPMG.set(x.p,x)}return TOPMG}
+function topMinas(cod,max=5){const L=S.topmg||[],res=[];if(!L.length)return res;
+  const an=analisar(cod),nt=naoTrab(cod),c=IX.cli.get(cod);
+  if(an.produtos.length){
+    const comprou=new Set(an.produtos.map(x=>x.codigo)),cats=new Set(an.cats.slice(0,6).map(x=>x[0])),famN=new Map();
+    const famEx=new Map(),usado=new Set();
+    for(const x of an.produtos){const k=famKey(x.desc);famN.set(k,(famN.get(k)||0)+x.n);if(!famEx.has(k))famEx.set(k,x.desc)}
+    for(const x of L){if(comprou.has(x.p))continue;const d=pDesc(x.p)||x.d,k=famKey(d);if(nt.f.has(k)||usado.has(k))continue;
+      const ci=IX.cat.get(x.p)?.categoria,mf=famN.get(k)||0;if(mf||(ci&&cats.has(ci)))usado.add(k);
+      if(mf)res.push({...x,d,motivo:`nº ${x.pos} de Minas — ele compra ${curta(famEx.get(k))} (${mf}x), mas não este`});
+      else if(ci&&cats.has(ci))res.push({...x,d,motivo:`nº ${x.pos} de Minas — da linha ${ci.toLowerCase()}, que ele compra`});
+      if(res.length>=max)break}
+  }else{
+    const seg=c?segEf(c):'',P=perfilSeg(seg&&perfilSeg(seg).lojas>=5?seg:'');
+    for(const x of L){const d=pDesc(x.p)||x.d;if(nt.f.has(famKey(d)))continue;const sh=P.lojas?(P.n.get(x.p)||0)/P.lojas:0;
+      if(seg&&P.lojas>=5&&sh<.03)continue;
+      res.push({...x,d,motivo:`nº ${x.pos} de Minas${sh?` · ${Math.round(sh*100)}% das lojas ${seg?'do tipo':''} compram`:''}`});if(res.length>=max)break}}
+  return res}
+const selMG=p=>{const x=topMG().get(p);return x?` <span class="badge b-mg" title="${x.pos}º mais vendido da Tambasa em Minas">🏆 ${x.pos}º MG</span>`:''};
 function cardAt(x,d){
   const c=IX.cli.get(x.c);if(!c)return '';const a=analisar(c.codigo),r=regDoDia(c.codigo,d),p=prioridade(c),u=ultRegistro(c.codigo);
-  const rep=!a.produtos.length?topSegmento(segEf(c),3,naoTrab(c.codigo).f).map(z=>curta(z.d)):a.repor.slice(0,3).map(z=>curta(z.desc)),ac=ofertas(c.codigo).slice(0,3);
+  const rep=!a.produtos.length?topSegmento(segEf(c),3,naoTrab(c.codigo).f).map(z=>curta(z.d)):a.repor.slice(0,3).map(z=>curta(z.desc)),ac=ofertas(c.codigo).slice(0,3),mg=topMinas(c.codigo,2).filter(z=>!ac.some(o=>o.item.p===z.p));
   const zap=linkZap(c.telefone,mensagem(c,a)),tel=linkTel(c.telefone),cls=r?{vendeu:'feito',nao_vendeu:'perdeu',nao_atendido:'ausente'}[r.res]:'';
   const outros=[0,1,2,3,4].map(i=>semSel+i).filter(z=>z!==d&&!diaAg(semSel,z).off);
   return `<div class="at ${cls}" data-c="${h(c.codigo)}">
@@ -827,7 +851,7 @@ function cardAt(x,d){
     <div class="small">${c.prospect?'Ainda não compra da Tambasa: apresente a empresa, deixe seu contato e pegue o nome do comprador. Chamex paga R$ 30 por cliente novo.':h(p.motivo.join('; ')||'manter relacionamento')}</div>
     ${u&&u!==r?`<div class="small muted">Último registro: ${txtReg(u)}</div>`:''}</div>
     <div class="row" style="flex:1 1 170px;justify-content:flex-end"><button class="btn sm" data-a="ficha">Ficha</button><button class="btn sm" data-a="pedido">🛒 Pedido</button>${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a>`:''}${zap?`<a class="btn sm zap" href="${h(zap)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}</div></div>
-   ${rep.length||ac.length?`<div class="ofr">${rep.length?`${!a.produtos.length?'Levar (mais vendidos do segmento)':'Repor'}: ${h(rep.join(', '))}<br>`:''}${ac.length?`Ações: ${ac.map((o,i)=>`<b>${h(curta(o.item.d))}</b> <span class="muted">(${h(premioTxt(o))})</span> <a href="#" data-a="nt" data-i="${i}" class="small" title="Ele não trabalha com isso — não oferecer mais" style="color:var(--muted)">✕</a>`).join(' · ')}`:''}</div>`:''}
+   ${rep.length||ac.length||mg.length?`<div class="ofr">${rep.length?`${!a.produtos.length?'Levar (mais vendidos do segmento)':'Repor'}: ${h(rep.join(', '))}<br>`:''}${ac.length?`Ações: ${ac.map((o,i)=>`<b>${h(curta(o.item.d))}</b> <span class="muted">(${h(premioTxt(o))})</span> <a href="#" data-a="nt" data-i="${i}" class="small" title="Ele não trabalha com isso — não oferecer mais" style="color:var(--muted)">✕</a>`).join(' · ')}`:''}${mg.length?`${ac.length?'<br>':''}🏆 Top Minas que ele não compra: ${mg.map(z=>`<b>${h(curta(z.d))}</b> <span class="muted">(${z.pos}º)</span>`).join(' · ')}`:''}</div>`:''}
    ${r?`<div class="small" style="margin-top:6px">${txtReg(r)}${r.retorno!=null?` · <b>retornar ${DSEM[dow(r.retorno)]} ${fmtDia(r.retorno).slice(0,5)}</b>`:''} <button class="btn sm" data-a="editar">Alterar</button></div>`:
    abertoRes?.c===c.codigo?'':`<div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn sm" data-r="vendeu" style="color:var(--ok)">✓ Vendeu</button><button class="btn sm" data-r="nao_vendeu" style="color:var(--warn)">Não vendeu</button><button class="btn sm" data-r="nao_atendido" style="color:var(--bad)">Não atendido</button>
      <select data-a="mover" style="width:auto;max-width:170px;padding:4px 6px;font-size:13px"><option value="">Mover para…</option>${outros.map(z=>`<option value="${z}">${DSEM[dow(z)]} ${fmtDia(z).slice(0,5)}</option>`).join('')}<option value="x">Tirar da semana</option></select></div>`}
@@ -1167,8 +1191,8 @@ async function carregarBaseFB(){const m=await NUVEM.doc('base/meta').get();if(!m
   statusNuvem('⬇️ baixando a base…');const out={};
   for(const [nome,n] of Object.entries(meta.partes)){let b='';for(let i=0;i<n;i++)b+=(await NUVEM.doc(`base/${nome}-${i}`).get()).data().d;out[nome]=JSON.parse(await gunzipB64(b))}
   const ed={};for(const c of S.clientes)ed[c.codigo]=c;
-  if(out.clientes){S.clientes=out.clientes;aplicarEdicoes(ed)}for(const k of ['vendas','catalogo','acoes','prospects'])if(out[k])S[k]=out[k];
-  for(const k of ['clientes','vendas','catalogo','acoes','prospects'])await salvarLocal(k);await salvarKV('versao',meta.v).catch(()=>{});return true}
+  if(out.clientes){S.clientes=out.clientes;aplicarEdicoes(ed)}for(const k of ['vendas','catalogo','acoes','prospects','topmg'])if(out[k])S[k]=out[k];
+  for(const k of ['clientes','vendas','catalogo','acoes','prospects','topmg'])await salvarLocal(k);TOPMG=null;await salvarKV('versao',meta.v).catch(()=>{});return true}
 function telaLogin(auth,erro){const d=document.createElement('div');d.className='modal';
   d.innerHTML=`<div class="mbox" style="text-align:center;display:grid;gap:12px;justify-items:center"><span class="mark-login">RT</span><b style="font-size:20px">Rota Tambasa</b>
     <p class="small muted" style="margin:0">Entre com a sua conta Google para ver seus clientes. Os dados ficam iguais no celular e no computador.</p>
@@ -1193,7 +1217,7 @@ async function iniciarFirebase(){statusNuvem('☁️ conectando…');
 // Dados > Base na nuvem: envia base_rota.json + acoes.json + prospects_*.json escolhidos no computador
 async function lerBaseArquivos(files){const partes={},prosp=[];
   for(const f of files){const j=JSON.parse(await f.text());if(j.clientes)partes.clientes=j.clientes;if(j.vendas)partes.vendas=j.vendas;if(j.catalogo)partes.catalogo=j.catalogo;
-    if(j.acoes)partes.acoes=j.acoes;if(j.prospects)prosp.push(...j.prospects)}
+    if(j.acoes)partes.acoes=j.acoes;if(j.topmg)partes.topmg=j.topmg;if(j.prospects)prosp.push(...j.prospects)}
   if(prosp.length)partes.prospects=prosp;return partes}
 
 
@@ -1286,7 +1310,8 @@ let NPED=[],NREM=new Set(),NCOMP=[],NADD=new Set();
 function montarPedidoPronto(){const seg=$('#nSeg').value,nMax=+$('#nTam').value,foco=$('#nFoco').value,q=norm($('#nBusca').value);
   const todos=topSegmento(seg,400).filter(x=>x.preco&&!NREM.has(x.p));
   const acaoDe=p=>acoesDoProduto(p).filter(z=>!z.a.ranking&&!z.a.oferta).length?1:0;
-  const pont=x=>x.share*100+(foco==='acoes'?acaoDe(x.p)*40:0)+(foco==='comissao'?(faixaCom(x.p,x.d)==='P'?25:0):0);
+  const mgP=p=>{const m=topMG().get(p);return m?(301-m.pos)/300:0};
+  const pont=x=>x.share*100+(foco==='acoes'?acaoDe(x.p)*40:0)+(foco==='comissao'?(faixaCom(x.p,x.d)==='P'?25:0):0)+mgP(x.p)*(foco==='minas'?40:8);
   const revenda=todos.filter(x=>!usoLoja(seg,x.p,x.d)&&(!q||norm(x.d).includes(q))).sort((a,b)=>pont(b)-pont(a));
   const ped=[];for(const x of revenda){ped.push({p:x.p,d:x.d,q:qtdTipica(seg,x.p),preco:Math.round(x.preco*100)/100,share:x.share});if(ped.length>=nMax)break}
   // complementos: consumo da loja que dá campanha (1 unidade/caixa = o mínimo que positiva)
@@ -1494,10 +1519,10 @@ function renderCatalogo(){
   $('#v-catalogo').classList.toggle('mostrar',$('#cMostrar').checked);
   if($('#cInd').options.length<2){const n=new Map();for(const p of S.catalogo){const m=industria(p.codigo,p.descricao);if(m)n.set(m,(n.get(m)||0)+1)}
     $('#cInd').innerHTML='<option value="">Todas as indústrias</option>'+[...n.entries()].filter(x=>x[1]>=3).sort((a,b)=>a[0].localeCompare(b[0])).map(([m,c])=>`<option value="${h(m)}">${h(nomeInd(m))} (${c})</option>`).join('')}
-  let arr=S.catalogo;if(cat)arr=arr.filter(p=>p.categoria===cat);if(ind)arr=arr.filter(p=>industria(p.codigo,p.descricao)===ind);if(camp)arr=arr.filter(p=>acoesDoProduto(p.codigo).length);if(per)arr=arr.filter(p=>noPerfil(per,p)&&p.preco>0);
+  let arr=S.catalogo;if(cat)arr=arr.filter(p=>p.categoria===cat);if(ind)arr=arr.filter(p=>industria(p.codigo,p.descricao)===ind);if(camp==='camp')arr=arr.filter(p=>acoesDoProduto(p.codigo).length);if(camp==='mg')arr=arr.filter(p=>topMG().has(p.codigo)).sort((a,b)=>topMG().get(a.codigo).pos-topMG().get(b.codigo).pos);if(per)arr=arr.filter(p=>noPerfil(per,p)&&p.preco>0);
   if(q)arr=arr.filter(p=>norm(p.codigo+' '+p.descricao+' '+(p.marca||'')+' '+(p.categoria||'')).includes(q));
   const tot=arr.length;arr=arr.slice(0,300);
-  $('#cTab').innerHTML=arr.map(p=>`<tr><td>${h(p.codigo)}</td><td>${h(p.descricao)}</td><td>${h(nomeInd(industria(p.codigo,p.descricao)))}${acoesDoProduto(p.codigo).length?' <span class="badge b-ativo">campanha</span>':''}</td><td class="small">${h(p.categoria||'')}</td><td class="n">${p.preco?brl(p.preco):'—'}</td><td class="n so-rep">${fmtN(comPct(p.codigo,p.descricao,1))}%</td><td class="n so-rep">${IX.cpp.get(p.codigo)?.size||0}</td></tr>`).join('');
+  $('#cTab').innerHTML=arr.map(p=>`<tr><td>${h(p.codigo)}</td><td>${h(p.descricao)}${selMG(p.codigo)}</td><td>${h(nomeInd(industria(p.codigo,p.descricao)))}${acoesDoProduto(p.codigo).length?' <span class="badge b-ativo">campanha</span>':''}</td><td class="small">${h(p.categoria||'')}</td><td class="n">${p.preco?brl(p.preco):'—'}</td><td class="n so-rep">${fmtN(comPct(p.codigo,p.descricao,1))}%</td><td class="n so-rep">${IX.cpp.get(p.codigo)?.size||0}</td></tr>`).join('');
   const infoI=ind&&infoInd(ind);
   $('#cInfo').textContent=(infoI?nomeInd(ind)+': '+infoI+' · ':'')+(tot?`${tot} produto(s)${tot>300?' — mostrando 300':''}`:'Nenhum produto com esse filtro.')}
 let tcb;$('#cBusca').oninput=()=>{clearTimeout(tcb);tcb=setTimeout(renderCatalogo,150)};$('#cCat').onchange=renderCatalogo;$('#cInd').onchange=renderCatalogo;$('#cPerfil').onchange=renderCatalogo;$('#cMostrar').onchange=renderCatalogo;$('#cCamp').onchange=renderCatalogo;
