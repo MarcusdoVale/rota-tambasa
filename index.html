@@ -574,7 +574,8 @@ function ofertas(cod){
       if(it){
         if(a.reativacao){if(x.ult>=REATIV_ATE-365&&x.ult<REATIV_ATE)pega({s:130,tipo:'reativação',item:it,base:x,motivo:`comprou em 2025 (última ${fmtDia(x.ult)}) e nada em 2026 — conta como REATIVADO`});
           else if(x.ult<REATIV_ATE)pega({s:40,tipo:'similar',item:it,base:x,motivo:`comprava até ${fmtDia(x.ult)} — confirmar com o gerente se conta como cliente novo`});continue}
-        pega({s:(100+8*Math.min(x.n,10))*rec(x.ult),tipo:'já compra',item:it,base:x,motivo:`já compra (${x.n}x, última ${fmtDia(x.ult)})`});continue}
+        pega({s:(100+8*Math.min(x.n,10))*rec(x.ult)*(a.oferta?.9:1),tipo:'já compra',item:it,base:x,motivo:`já compra (${x.n}x, última ${fmtDia(x.ult)})${a.oferta?' — preço baixou no encarte':''}`});continue}
+      if(a.oferta)continue; // encarte de preço: só oferece o item exato que ele já compra
       if(hoje-x.ult>730)continue; // similar só vale para o que ele comprou nos últimos 2 anos
       const k=famKey(x.desc);if(nt.f.has(k))continue;let fi=a.fams.get(k);
       // só oferece similar se for da linha que ele trabalha: categoria que ele compra, ou tipo de produto que já comprou 2+ vezes
@@ -582,7 +583,9 @@ function ofertas(cod){
       if(!fi&&a.extra.length&&a.extra.some(r=>r.test(x.desc)))fi=a.itens[0]||{p:'',d:a.fornecedor,premio:a.tipo};
       if(fi)pega({s:(40+5*Math.min(x.n,8))*rec(x.ult)+(a.reativacao?5:0),tipo:'similar',item:fi,base:x,motivo:`compra ${curta(x.desc)} (${x.n}x) — oferecer ${a.reativacao?'Chamex como cliente NOVO':'a marca da ação'}`})}
     if(best){best.s*=ativ;best.a=a;res.push(best)}}
-  res.sort((x,y)=>y.s-x.s);IX.ofertas.set(cod,res);return res}
+  res.sort((x,y)=>y.s-x.s);const r2=limEnc(res,2);IX.ofertas.set(cod,r2);return r2}
+// encartes de preço: no máximo n por cliente, para não tomar o lugar das ações de comissão
+const limEnc=(l,n)=>{let k=0;return l.filter(o=>!o.a.oferta||k++<n)};
 // "não trabalha com": tipos de produto (família) e ações que o cliente recusou — nunca mais oferecer
 const acaoKey=a=>key(a.fornecedor.split(/[ (\/]/)[0]);
 function naoTrab(cod){const l=IX.cli.get(cod)?.naoTrab||[];return {f:new Set(l.map(x=>x.f).filter(Boolean)),a:new Set(l.map(x=>x.a).filter(Boolean)),l}}
@@ -591,7 +594,7 @@ function marcarNaoTrab(cod,itens){const c=IX.cli.get(cod);if(!c||!itens.length)r
 function desmarcarNaoTrab(cod,i){const c=IX.cli.get(cod);if(!c?.naoTrab)return;c.naoTrab.splice(i,1);salvar('clientes');IX.ofertas.delete(cod);CACHE.delete(cod)}
 // bloqueia o tipo de produto (ex.: CADEIRA); quando a oferta é a linha inteira (sem produto), bloqueia a ação
 const ntDeOferta=o=>o.item.p?{f:famKey(o.item.d),txt:curta(o.item.d)}:{a:acaoKey(o.a),txt:o.a.fornecedor};
-const premioTxt=o=>o.a.reativacao?'R$ 30/cliente':o.item.premio&&o.item.premio!==o.a.tipo?o.item.premio:o.a.tipo;
+const premioTxt=o=>o.a.reativacao?'R$ 30/cliente':o.a.oferta?'oferta '+(o.item.premio||''):o.item.premio&&o.item.premio!==o.a.tipo?o.item.premio:o.a.tipo;
 
 /* ===================== mensagens e roteiro ===================== */
 const EMPRESA=/^(COM|COMERCIO|COMERCIAL|MERCEARIA|MERCADO|SUPERMERCADO|SUPERMERCADOS|LOJA|LOJAS|CASA|DEPOSITO|DISTRIBUIDORA|MATERIAIS|MATERIAL|AUTO|AGRO|AGROPECUARIA|FERRAGENS|FERRAGISTA|CONSTRUCOES|CONSTRUTORA|POSTO|ARMAZEM|EMPORIO|PADARIA|DROGARIA|FARMACIA|BAR|RESTAURANTE|HOTEL|IND|INDUSTRIA|CENTRO|COOPERATIVA|ASSOCIACAO|PREFEITURA|IGREJA|SINDICATO|FAZENDA|TRANSPORTES|MOTO|ELETRICA|HIDRAULICA|PAPELARIA|VIDRACARIA|SERRALHERIA|MADEIREIRA|OFICINA|ACOUGUE|SACOLAO|HORTIFRUTI|BAZAR|ARMARINHO|CALCADOS|CONFECCOES|PET|AVICOLA|CEREALISTA)$/;
@@ -622,7 +625,7 @@ function roteiro(c){
   }else L.push('Situação: ainda sem compras registradas.');
   if(a.repor.length){L.push('','HORA DE REPOR (oferecer primeiro)');a.repor.slice(0,8).forEach(x=>L.push(`- ${curta(x.desc)} — leva ~${fmtN(Math.round(x.qMed))} un. a cada ~${Math.round(x.int)} dias; última ${fmtDia(x.ult)}${x.preco?'; preço ref. '+brl(x.preco):''}`))}
   const ofs=ofertas(c.codigo);
-  if(ofs.length){L.push('','AÇÕES DO MÊS (oferecer — comissão/prêmio extra)');ofs.slice(0,8).forEach(o=>L.push(`- ${curta(o.item.d)} [${o.a.fornecedor}] — ${o.motivo}; ganho: ${premioTxt(o)}; até ${fmtDia(o.a.fim)}${o.item.preco?'; preço '+brl(o.item.preco):''}`))}
+  if(ofs.length){L.push('','AÇÕES DO MÊS (oferecer — comissão/prêmio extra)');ofs.slice(0,8).forEach(o=>L.push(`- ${curta(o.item.d)} [${o.a.fornecedor}] — ${o.motivo}; ${o.a.oferta?'':'ganho: '}${premioTxt(o)}; até ${fmtDia(o.a.fim)}${o.item.preco?'; preço '+brl(o.item.preco):''}`))}
   if(a.produtos.length){L.push('','O QUE COSTUMA COMPRAR');a.produtos.slice(0,10).forEach(x=>L.push(`- ${curta(x.desc)} — ${x.n}x, total ${fmtN(x.qtd)} un.; última ${fmtDia(x.ult)}${x.pago?'; pagou '+brl(x.pago):''}`))}
   if(a.parou.length){L.push('','PAROU DE COMPRAR (perguntar o motivo / se está comprando de outro)');a.parou.slice(0,6).forEach(x=>L.push(`- ${curta(x.desc)} — comprava a cada ~${Math.round(x.int)} dias, última ${fmtDia(x.ult)}`))}
   if(sug.length){L.push('',sug[0].seg?`MAIS VENDIDOS PARA ${(segEf(c)||'lojas como esta').toUpperCase()} (levar na apresentação)`:'OPORTUNIDADES (clientes parecidos compram, ele não)');sug.forEach(x=>L.push(`- ${curta(x.desc)}${x.preco?' — '+brl(x.preco):''}`))}
@@ -810,9 +813,9 @@ function ofertasSegmento(cod){const c=IX.cli.get(cod),seg=c?segEf(c):'',base=seg
     for(const it of a.itens){const q=n.get(it.p)||0;if(!q||nt.f.has(famKey(it.d)))continue;tot+=q;if(!best||q>best.q)best={it,q}}
     if(!best||best.q/lojas<.04)continue;
     const pct=Math.round(best.q/lojas*100);
-    res.push({a,item:best.it,tipo:'do segmento',s:30+pct+Math.min(tot/lojas*10,20)+(a.reativacao?25:0),
+    res.push({a,item:best.it,tipo:'do segmento',s:(30+pct+Math.min(tot/lojas*10,20)+(a.reativacao?25:0))*(a.oferta?.8:1),
       motivo:a.reativacao?`cliente NOVO na Chamex conta R$ 30 — papel sai em ${pct}% das lojas ${base?'de '+base:''}`:`${pct}% das lojas ${base?'de '+base:'que atendemos'} compram este item`})}
-  return res.sort((x,y)=>y.s-x.s)}
+  return limEnc(res.sort((x,y)=>y.s-x.s),1)}
 function cardAt(x,d){
   const c=IX.cli.get(x.c);if(!c)return '';const a=analisar(c.codigo),r=regDoDia(c.codigo,d),p=prioridade(c),u=ultRegistro(c.codigo);
   const rep=!a.produtos.length?topSegmento(segEf(c),3,naoTrab(c.codigo).f).map(z=>curta(z.d)):a.repor.slice(0,3).map(z=>curta(z.desc)),ac=ofertas(c.codigo).slice(0,3);
@@ -991,7 +994,7 @@ const comPct=(p,d,g)=>COM_TAB[faixaCom(p,d)][(g||1)-1];
 const comItem=(i,g)=>(i.q||0)*(i.preco||0)*comPct(i.p,i.d,g)/100;
 const FAIXA_TXT={P:'5% (normal)',A:'2,5% (lista A do contrato)',B:'1,5% (lista B)',C:'1% (lista C — papel)'};
 function ganhoItem(i,grp){const valor=(i.q||0)*(i.preco||0);let g=0;const det=[];
-  for(const {a,it} of acoesDoProduto(i.p)){if(a.ranking||a.reativacao||(a.brinde&&!/R\$/.test(it.premio||'')))continue;
+  for(const {a,it} of acoesDoProduto(i.p)){if(a.oferta||a.ranking||a.reativacao||(a.brinde&&!/R\$/.test(it.premio||'')))continue;
     const t=str(it.premio&&it.premio!==a.tipo?it.premio:a.tipo);let v=0,m;
     if(/dobro/i.test(t))v=valor*comPct(i.p,i.d,grp)/100;
     else if(m=t.match(/R\$\s*([\d.,]+)\s*a cada R\$\s*([\d.,]+)/i))v=Math.floor(valor/num(m[2]))*num(m[1]);
@@ -1282,12 +1285,12 @@ let NPED=[],NREM=new Set(),NCOMP=[],NADD=new Set();
 // positivar uma ação ou completar o pedido mínimo — entram só se você adicionar.
 function montarPedidoPronto(){const seg=$('#nSeg').value,nMax=+$('#nTam').value,foco=$('#nFoco').value,q=norm($('#nBusca').value);
   const todos=topSegmento(seg,400).filter(x=>x.preco&&!NREM.has(x.p));
-  const acaoDe=p=>acoesDoProduto(p).filter(z=>!z.a.ranking).length?1:0;
+  const acaoDe=p=>acoesDoProduto(p).filter(z=>!z.a.ranking&&!z.a.oferta).length?1:0;
   const pont=x=>x.share*100+(foco==='acoes'?acaoDe(x.p)*40:0)+(foco==='comissao'?(faixaCom(x.p,x.d)==='P'?25:0):0);
   const revenda=todos.filter(x=>!usoLoja(seg,x.p,x.d)&&(!q||norm(x.d).includes(q))).sort((a,b)=>pont(b)-pont(a));
   const ped=[];for(const x of revenda){ped.push({p:x.p,d:x.d,q:qtdTipica(seg,x.p),preco:Math.round(x.preco*100)/100,share:x.share});if(ped.length>=nMax)break}
   // complementos: consumo da loja que dá campanha (1 unidade/caixa = o mínimo que positiva)
-  const comp=[];for(const x of todos){if(!usoLoja(seg,x.p,x.d))continue;const ac=acoesDoProduto(x.p).filter(z=>!z.a.ranking);if(!ac.length)continue;
+  const comp=[];for(const x of todos){if(!usoLoja(seg,x.p,x.d))continue;const ac=acoesDoProduto(x.p).filter(z=>!z.a.ranking&&!z.a.oferta);if(!ac.length)continue;
     comp.push({p:x.p,d:x.d,q:1,preco:Math.round(x.preco*100)/100,share:x.share,uso:true,nota:ac.some(z=>z.a.reativacao)?'uso da loja · 1 caixa positiva a ação':'uso da loja · positiva a ação',acao:ac[0].a.fornecedor});if(comp.length>=6)break}
   NCOMP=comp;for(const c of comp)if(NADD.has(c.p))ped.push({...c});
   NPED=ped}
@@ -1298,7 +1301,7 @@ function renderNovo(){
   montarPedidoPronto();renderNPed();renderRecentes()}
 function renderNPed(){const v=NPED,minimo=num(S.config.pedidoMinimo),tot=pedTotal(v),com=v.reduce((s,i)=>s+comItem(i,1),0),ex=v.reduce((s,i)=>s+ganhoItem(i,1).g,0),seg=$('#nSeg').value;
   $('#nPed').innerHTML=v.length?`<div class="tw"><table><thead><tr><th>Produto</th><th class="n">Qtd</th><th class="n">Preço</th><th class="n">Subtotal</th><th></th></tr></thead><tbody>
-   ${v.map((i,k)=>{const ac=acoesDoProduto(i.p).filter(z=>!z.a.ranking&&!z.a.reativacao)[0];return `<tr><td>${h(curta(i.d))}<div class="small muted">${h(i.p)} · ${i.nota?`<b>${h(i.nota)}</b> · `:''}${Math.round(i.share*100)}% das lojas ${seg?'do tipo':''} compram · comissão ${fmtN(comPct(i.p,i.d,1))}%${ac?` · <span style="color:var(--ok)">ação ${h(ac.a.fornecedor.split(' (')[0])}: ${h(ac.it.premio&&ac.it.premio!==ac.a.tipo?ac.it.premio:ac.a.tipo)}</span>`:''}</div></td>
+   ${v.map((i,k)=>{const ac=acoesDoProduto(i.p).filter(z=>!z.a.ranking&&!z.a.reativacao&&!z.a.oferta)[0];return `<tr><td>${h(curta(i.d))}<div class="small muted">${h(i.p)} · ${i.nota?`<b>${h(i.nota)}</b> · `:''}${Math.round(i.share*100)}% das lojas ${seg?'do tipo':''} compram · comissão ${fmtN(comPct(i.p,i.d,1))}%${ac?` · <span style="color:var(--ok)">ação ${h(ac.a.fornecedor.split(' (')[0])}: ${h(ac.it.premio&&ac.it.premio!==ac.a.tipo?ac.it.premio:ac.a.tipo)}</span>`:''}</div></td>
     <td class="n"><input data-nq="${k}" type="number" min="0" step="1" value="${i.q}" style="width:70px;text-align:right"></td><td class="n">${brl(i.preco)}</td><td class="n">${brl(i.q*i.preco)}</td><td class="n"><button class="btn sm" data-nrem="${h(i.p)}" title="Tirar e pôr outro no lugar">✕</button></td></tr>`}).join('')}
    </tbody></table></div>
    <div class="row" style="margin-top:10px;align-items:flex-end"><div><div class="small muted">Pedido pronto · ${v.length} itens</div><div style="font-size:22px;font-weight:800">${brl(tot)}</div><div class="small">Sua comissão (Grupo 1): <b>${brl(com)}</b>${ex?` + <b style="color:var(--ok)">${brl(ex)}</b> das ações`:''} <span class="muted">(estimativa)</span></div></div>
