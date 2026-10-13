@@ -611,7 +611,7 @@ const precoEnc=t=>{t=str(t);const dc=(t.match(/-\d+%/)||[''])[0],pt=/POR/.test(t
 function encDoProd(p){for(const {a,it} of acoesDoProduto(p))if(a.oferta)return {...it,baixou:/reduziram/i.test(a.fornecedor)||/POR/.test(it.premio||'')};return null}
 const txtEnc=e=>`${precoEnc(e.premio)} — ${e.baixou?'baixou!':'preço de encarte'}`;
 function listaVenda(cod,n=5){const a=analisar(cod),nt=naoTrab(cod),out=[],vis=new Set(),cont={repor:0,baixou:0,topmg:0,seg:0};
-  const fams=new Set(),add=(tipo,lim,p,d,txt,valor)=>{const k=famKey(d);if(cont[tipo]>=lim||vis.has(p)||fams.has(k)||nt.f.has(k))return;vis.add(p);fams.add(k);cont[tipo]++;out.push({tipo,p,d,txt,valor})};
+  const fams=new Set(),add=(tipo,lim,p,d,txt,valor)=>{d=str(d).split(/CAT[ÁA]LOGO 20\d\d/i)[0].trim();const k=famKey(d);if(cont[tipo]>=lim||vis.has(p)||fams.has(k)||nt.f.has(k))return;vis.add(p);fams.add(k);cont[tipo]++;out.push({tipo,p,d,txt,valor})};
   const unV=new Map();for(const v of IX.vpc.get(cod)||[])if(v.produto&&v.unidade)unV.set(v.produto,v.unidade);
   const un=p=>(unV.get(p)||IX.cat.get(p)?.unidade||'').toLowerCase();
   // 1) repor: o que ele leva sempre e está na hora — ordena pelo valor do pedido típico
@@ -625,7 +625,7 @@ function listaVenda(cod,n=5){const a=analisar(cod),nt=naoTrab(cod),out=[],vis=ne
   if(out.length<3)for(const x of topMinas(cod,12)){const pr=precoMG(x);if(pr)add('topmg',5,x.p,x.d,`${brl(pr.v)}${x.un?' '+x.un.toLowerCase():''}`,pr.v)}
   // ainda pouco (cliente parado / sem perfil): o que ele já comprou e tem preço, depois os mais vendidos do tipo de loja
   if(out.length<3)for(const x of a.produtos.filter(x=>hojeDia()-x.ult<=730&&!/^[.*]/.test(x.desc||'')).slice(0,15)){const e=encDoProd(x.codigo),pr=x.preco;if(e||pr)add('repor',5,x.codigo,x.desc,e?txtEnc(e):`${brl(pr)}${un(x.codigo)?' '+un(x.codigo):''}`,0)}
-  if(out.length<3){const c=IX.cli.get(cod);for(const x of topSegmento(c?segEf(c):'',10,nt.f)){const e=encDoProd(x.p);if(e||x.preco)add('seg',3,x.p,x.d,e?txtEnc(e):`${brl(x.preco)}${un(x.p)?' '+un(x.p):''}`,0)}}
+  if(out.length<3){const c=IX.cli.get(cod);for(const x of topSegmento(c?segEf(c):'',10,nt.f)){if(usoLoja(c?segEf(c):'',x.p,x.d))continue;const e=encDoProd(x.p);if(e||x.preco)add('seg',3,x.p,x.d,e?txtEnc(e):`${brl(x.preco)}${un(x.p)?' '+un(x.p):''}`,0)}}
   return out.slice(0,n)}
 const TIPO_LV={repor:'ele compra',baixou:'em oferta',topmg:'top Minas',seg:'giro do segmento'};
 function mensagem(c,a){
@@ -854,19 +854,19 @@ function ofertasSegmento(cod){const c=IX.cli.get(cod),seg=c?segEf(c):'',base=seg
 let TOPMG=null;
 function topMG(){if(!TOPMG){TOPMG=new Map();for(const x of S.topmg||[])TOPMG.set(x.p,x)}return TOPMG}
 function topMinas(cod,max=5){const L=S.topmg||[],res=[];if(!L.length)return res;
-  const an=analisar(cod),nt=naoTrab(cod),c=IX.cli.get(cod);
+  const an=analisar(cod),nt=naoTrab(cod),c=IX.cli.get(cod),sg=c?segEf(c):'';
   if(an.produtos.length){
     const comprou=new Set(an.produtos.map(x=>x.codigo)),cats=new Set(an.cats.slice(0,6).map(x=>x[0])),famN=new Map();
     const famEx=new Map(),usado=new Set();
     for(const x of an.produtos){const k=famKey(x.desc);famN.set(k,(famN.get(k)||0)+x.n);if(!famEx.has(k))famEx.set(k,x.desc)}
-    for(const x of L){if(comprou.has(x.p))continue;const d=pDesc(x.p)||x.d,k=famKey(d);if(nt.f.has(k)||usado.has(k))continue;
+    for(const x of L){if(comprou.has(x.p))continue;const d=pDesc(x.p)||x.d,k=famKey(d);if(nt.f.has(k)||usado.has(k)||usoLoja(sg,x.p,d))continue;
       const ci=IX.cat.get(x.p)?.categoria,mf=famN.get(k)||0;if(mf||(ci&&cats.has(ci)))usado.add(k);
       if(mf)res.push({...x,d,motivo:`nº ${x.pos} de Minas — ele compra ${curta(famEx.get(k))} (${mf}x), mas não este`});
       else if(ci&&cats.has(ci))res.push({...x,d,motivo:`nº ${x.pos} de Minas — da linha ${ci.toLowerCase()}, que ele compra`});
       if(res.length>=max)break}
   }else{
     const seg=c?segEf(c):'',P=perfilSeg(seg&&perfilSeg(seg).lojas>=5?seg:'');
-    for(const x of L){const d=pDesc(x.p)||x.d;if(nt.f.has(famKey(d)))continue;const sh=P.lojas?(P.n.get(x.p)||0)/P.lojas:0;
+    for(const x of L){const d=pDesc(x.p)||x.d;if(nt.f.has(famKey(d))||usoLoja(sg,x.p,d))continue;const sh=P.lojas?(P.n.get(x.p)||0)/P.lojas:0;
       if(seg&&P.lojas>=5&&sh<.03)continue;
       res.push({...x,d,motivo:`nº ${x.pos} de Minas${sh?` · ${Math.round(sh*100)}% das lojas ${seg?'do tipo':''} compram`:''}`});if(res.length>=max)break}}
   return res}
