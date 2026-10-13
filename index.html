@@ -387,7 +387,7 @@ Jb"></textarea>
       <textarea id="cfg-tplReativarPres" rows="3"></textarea>
       <label>Mensagem — clientes PRESENCIAIS (aviso da visita)</label>
       <textarea id="cfg-tplPresencial" rows="4"></textarea>
-      <p class="muted small">Variáveis: {saudacao} {contato} {cliente} {vendedor} {secretaria} {empresa} {produtos_repor} {sugestoes} {acoes} {ultima_compra} {dias_sem_comprar} — {acoes} = itens das ações do mês com mais chance para o cliente</p>
+      <p class="muted small">Variáveis: {saudacao} {contato} {cliente} {vendedor} {secretaria} {empresa} {produtos_repor} {sugestoes} {acoes} {ultima_compra} {dias_sem_comprar} {lista_venda} — {acoes} = itens das ações do mês com mais chance para o cliente · {lista_venda} = lista com preço pra vender (repor + baixou de preço + top Minas)</p>
       <label>Mensagem — PROSPECT (loja que ainda não compra da Tambasa)</label>
       <textarea id="cfg-tplProspect" rows="3"></textarea>
       <label>Cola de abordagem — presencial (aparece no roteiro de cada cliente)</label>
@@ -446,9 +446,9 @@ function salvar(k){if(typeof agendarPush==='function')agendarPush();return salva
 const SEGS=['Materiais de Construção','Construtora','Supermercado / Mercearia','Bar','Lanchonete / Restaurante','Padaria','Boate / Eventos','Agropecuária','Autopeças / Oficina','Papelaria','Farmácia','Utilidades / Variedades','Indústria','Órgão público / Entidade','Consumidor final','Outros'];
 const segEf=c=>c.segmento||c.segmento_sugerido||'',segSug=c=>!c.segmento&&!!c.segmento_sugerido;
 const CFG0={codigoRCA:'37223',vendedor:'Marcus',secretaria:'Claudia',empresa:'Tambasa',cidadePresencial:'Carmo do Paranaíba',limiteDia:30,intervaloRecontato:7,visitasDia:10,remotosDia:20,metaSemana:6000,metaMes:'',comissaoBase:5,pedidoMinimo:'',casaEnd:'',casaLat:'',casaLng:'',prospectsDia:2,ordemBairros:'',foraRota:'Quintinos'+String.fromCharCode(10)+'Zona Rural',
- tplRemoto:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Vi que já está chegando a hora de repor {produtos_repor}. Quer que eu já monte o pedido pra você? Se quiser, também te passo condição em {sugestoes}.',
+ tplRemoto:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Separei umas condições dessa semana pra você:\n{lista_venda}\nQuer que eu já monte o pedido? Se precisar de mais alguma coisa, é só me falar.',
  tplPresencial:'{saudacao}, {contato}! Aqui é a {secretaria}, secretária do {vendedor}. Ele está organizando a rota dessa semana e pediu pra eu te perguntar se precisa de {produtos_repor}. Quer que ele já leve o pedido separado na visita?',
- tplReativar:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Faz um tempinho que não falamos e queria saber como estão as coisas por aí. Você costumava levar {produtos_repor} com a gente. Quer que eu te passe as condições atuais?',
+ tplReativar:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Faz um tempinho que não falamos! Separei umas condições boas dessa semana:\n{lista_venda}\nQuer que eu te mande o pedido montado?',
  tplReativarPres:'{saudacao}, {contato}! Aqui é a {secretaria}, secretária do {vendedor}. Faz um tempo que ele não passa aí e está montando a rota dessa semana. Posso agendar uma visita dele? Ele leva as condições atuais de {produtos_repor}.',
  tplProspect:'{saudacao}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor}, representante da {empresa} aqui na região. Atendemos lojas de {cidade} com entrega e condições de atacado. Este mês temos condição especial em {acoes}, e entre os que mais saem em lojas como a sua estão {sugestoes}. Posso te mandar os preços ou agendar uma visita do {vendedor}?',
  colaPresencial:'',colaRemoto:''};
@@ -599,6 +599,35 @@ const premioTxt=o=>o.a.reativacao?'R$ 30/cliente':o.a.oferta?'oferta '+(o.item.p
 /* ===================== mensagens e roteiro ===================== */
 const EMPRESA=/^(COM|COMERCIO|COMERCIAL|MERCEARIA|MERCADO|SUPERMERCADO|SUPERMERCADOS|LOJA|LOJAS|CASA|DEPOSITO|DISTRIBUIDORA|MATERIAIS|MATERIAL|AUTO|AGRO|AGROPECUARIA|FERRAGENS|FERRAGISTA|CONSTRUCOES|CONSTRUTORA|POSTO|ARMAZEM|EMPORIO|PADARIA|DROGARIA|FARMACIA|BAR|RESTAURANTE|HOTEL|IND|INDUSTRIA|CENTRO|COOPERATIVA|ASSOCIACAO|PREFEITURA|IGREJA|SINDICATO|FAZENDA|TRANSPORTES|MOTO|ELETRICA|HIDRAULICA|PAPELARIA|VIDRACARIA|SERRALHERIA|MADEIREIRA|OFICINA|ACOUGUE|SACOLAO|HORTIFRUTI|BAZAR|ARMARINHO|CALCADOS|CONFECCOES|PET|AVICOLA|CEREALISTA)$/;
 function nomeContato(c){let n=str(c.contato).split(/\s+/)[0];if(!n){const w=norm(c.fantasia||c.nome).toUpperCase().replace(/^[\d.\-\/\s]+/,'').split(/\s+/);if(!w[0]||EMPRESA.test(w[0])||/\b(LTDA|EIRELI|S\/?A|ME|EPP)\b/.test(w.join(' ')))return '';n=str(c.fantasia||c.nome).replace(/^[\d.\-\/\s]+/,'').split(/\s+/)[0];if(!n||n.length<3||/\d/.test(n))return ''}return n[0].toUpperCase()+n.slice(1).toLowerCase()}
+// modelos antigos de mensagem remota -> novos com a lista de venda (só troca se ele não tiver personalizado)
+const MOD_ANT={tplRemoto:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Vi que já está chegando a hora de repor {produtos_repor}. Quer que eu já monte o pedido pra você? Se quiser, também te passo condição em {sugestoes}.',tplReativar:'{saudacao}, {contato}! Tudo bem? Aqui é a {secretaria}, do atendimento do {vendedor} ({empresa}). Faz um tempinho que não falamos e queria saber como estão as coisas por aí. Você costumava levar {produtos_repor} com a gente. Quer que eu te passe as condições atuais?'};
+function migrarModelos(){for(const k in MOD_ANT)if(S.config[k]===MOD_ANT[k])S.config[k]=CFG0[k]}
+/* ===== LISTA PRA VENDER (remoto): venda bruta — o que tem preço e procura, não só comissão/campanha =====
+   1) o que ele compra e está na hora de repor (maior valor primeiro) · 2) o que ele já compra e baixou no encarte
+   3) os mais vendidos de Minas que ele ainda não compra */
+const precoEnc=t=>{t=str(t);const dc=(t.match(/-\d+%/)||[''])[0],pt=/POR/.test(t)?t.split('POR')[1]:t;
+  const ms=[...pt.matchAll(/R\$\s*([\d.,]+)\s*-?\s*([A-Z%]{1,3})?/g)];if(!ms.length)return '';const u=ms.find(m=>m[2]==='UN')||ms[0];
+  return `R$ ${u[1]}${u[2]&&u[2]!=='%'?' '+u[2].toLowerCase():''}${dc?' ('+dc+')':''}`};
+function encDoProd(p){for(const {a,it} of acoesDoProduto(p))if(a.oferta)return {...it,baixou:/reduziram/i.test(a.fornecedor)||/POR/.test(it.premio||'')};return null}
+const txtEnc=e=>`${precoEnc(e.premio)} — ${e.baixou?'baixou!':'preço de encarte'}`;
+function listaVenda(cod,n=5){const a=analisar(cod),nt=naoTrab(cod),out=[],vis=new Set(),cont={repor:0,baixou:0,topmg:0,seg:0};
+  const fams=new Set(),add=(tipo,lim,p,d,txt,valor)=>{const k=famKey(d);if(cont[tipo]>=lim||vis.has(p)||fams.has(k)||nt.f.has(k))return;vis.add(p);fams.add(k);cont[tipo]++;out.push({tipo,p,d,txt,valor})};
+  const unV=new Map();for(const v of IX.vpc.get(cod)||[])if(v.produto&&v.unidade)unV.set(v.produto,v.unidade);
+  const un=p=>(unV.get(p)||IX.cat.get(p)?.unidade||'').toLowerCase();
+  // 1) repor: o que ele leva sempre e está na hora — ordena pelo valor do pedido típico
+  a.repor.map(x=>{const e=encDoProd(x.codigo),pr=x.preco||x.pago;return {x,e,pr,v:(x.qMed||1)*(pr||0)}}).filter(r=>r.e||r.pr).sort((p,q)=>q.v-p.v)
+    .forEach(r=>add('repor',2,r.x.codigo,r.x.desc,r.e?txtEnc(r.e):`${brl(r.pr)}${un(r.x.codigo)?' '+un(r.x.codigo):''}`,r.v));
+  // 2) já comprou e baixou de preço no encarte (mais comprados primeiro)
+  for(const x of a.produtos){const e=encDoProd(x.codigo);if(e)add('baixou',2,x.codigo,x.desc,txtEnc(e),(x.qMed||1)*(x.preco||x.pago||0))}
+  // 3) top Minas que ele ainda não compra (com preço)
+  for(const x of topMinas(cod,8)){const pr=precoMG(x);if(!pr)continue;add('topmg',2,x.p,x.d,pr.f==='encarte'?`${precoEnc(x.oferta)} — oferta`:`${brl(pr.v)}${x.un?' '+x.un.toLowerCase():''}`,pr.v)}
+  // completa com o que mais vende no estado, se faltou
+  if(out.length<3)for(const x of topMinas(cod,12)){const pr=precoMG(x);if(pr)add('topmg',5,x.p,x.d,`${brl(pr.v)}${x.un?' '+x.un.toLowerCase():''}`,pr.v)}
+  // ainda pouco (cliente parado / sem perfil): o que ele já comprou e tem preço, depois os mais vendidos do tipo de loja
+  if(out.length<3)for(const x of a.produtos.filter(x=>hojeDia()-x.ult<=730&&!/^[.*]/.test(x.desc||'')).slice(0,15)){const e=encDoProd(x.codigo),pr=x.preco;if(e||pr)add('repor',5,x.codigo,x.desc,e?txtEnc(e):`${brl(pr)}${un(x.codigo)?' '+un(x.codigo):''}`,0)}
+  if(out.length<3){const c=IX.cli.get(cod);for(const x of topSegmento(c?segEf(c):'',10,nt.f)){const e=encDoProd(x.p);if(e||x.preco)add('seg',3,x.p,x.d,e?txtEnc(e):`${brl(x.preco)}${un(x.p)?' '+un(x.p):''}`,0)}}
+  return out.slice(0,n)}
+const TIPO_LV={repor:'ele compra',baixou:'em oferta',topmg:'top Minas',seg:'giro do segmento'};
 function mensagem(c,a){
   if(c.prospect)return S.config.tplProspect.replace(/\{(\w+)\}/g,(m,k)=>({acoes:listaTxt(ofertas(c.codigo).slice(0,2).map(o=>curta(o.item.d)))||'várias linhas',sugestoes:listaTxt(topSegmento(segEf(c),6,naoTrab(c.codigo).f).filter(x=>!ofertas(c.codigo).slice(0,2).some(o=>o.item.p===x.p)).slice(0,2).map(x=>curta(x.d)))||'os itens de giro',saudacao:saudacao(),secretaria:S.config.secretaria,vendedor:S.config.vendedor,empresa:S.config.empresa,cidade:c.cidade||'sua cidade',contato:nomeContato(c),cliente:c.fantasia||c.nome})[k]??m);
   const cfg=S.config,reat=a.status==='inativo',pres=presencial(c),tpl=reat?(pres?cfg.tplReativarPres:cfg.tplReativar):(pres?cfg.tplPresencial:cfg.tplRemoto);
@@ -607,7 +636,8 @@ function mensagem(c,a){
   const acs=ofertas(c.codigo).filter(o=>!o.a.brinde||o.tipo!=='similar').slice(0,2).map(o=>curta(o.item.d));
   const vars={acoes:listaTxt(acs)||listaTxt(sug)||'outras linhas',saudacao:saudacao(),contato:nomeContato(c),cliente:c.fantasia||c.nome,vendedor:cfg.vendedor,secretaria:cfg.secretaria,empresa:cfg.empresa,
     produtos_repor:listaTxt(rep)||'os itens que você costuma levar',sugestoes:listaTxt(sug)||'outras linhas',ultima_compra:fmtDia(a.ult),dias_sem_comprar:a.diasSem??''};
-  return tpl.replace(/\{(\w+)\}/g,(m,k)=>k in vars?vars[k]:m).replace(/,\s*([!?.])/g,'$1').replace(/\s{2,}/g,' ')}
+  if(/\{lista_venda\}/.test(tpl)){const lv=listaVenda(c.codigo,5);vars.lista_venda=lv.length?lv.map(x=>`• ${curta(x.d)} — ${x.txt}`).join('\n'):`• ${vars.produtos_repor}`}
+  return tpl.replace(/\{(\w+)\}/g,(m,k)=>k in vars?vars[k]:m).replace(/,[ \t]*([!?.])/g,'$1').replace(/[ \t]{2,}/g,' ')}
 const linkTel=t=>{const d=str(t).replace(/\D/g,'').replace(/^0+/,'');return d.length>=10?'tel:+55'+d.replace(/^55(?=\d{10,11}$)/,''):null};
 const ehCelular=tel=>{const d=str(tel).replace(/\D/g,'').replace(/^55/,'');return d.length===11&&d[2]==='9'};
 function linkZap(tel,txt){let d=str(tel).replace(/\D/g,'').replace(/^0+/,'');if(d.length<10)return null;if(d.length<=11)d='55'+d;return `https://wa.me/${d}?text=${encodeURIComponent(txt||'')}`}
@@ -623,6 +653,7 @@ function roteiro(c){
     L.push(`Histórico: ${a.nPed} pedidos desde ${fmtDia(a.pri)} · total ${brl(a.total)} · ticket médio ${brl(a.ticket)}.`);
     if(a.cats.length)L.push(`Linhas que compra: ${a.cats.slice(0,4).map(x=>x[0]).join(', ')}.`);
   }else L.push('Situação: ainda sem compras registradas.');
+  const lvR=listaVenda(c.codigo,6);if(lvR.length){L.push('','LISTA PRA VENDER — com preço (abrir o atendimento por aqui)');lvR.forEach(x=>L.push(`- ${curta(x.d)} — ${x.txt} [${TIPO_LV[x.tipo]}]`))}
   if(a.repor.length){L.push('','HORA DE REPOR (oferecer primeiro)');a.repor.slice(0,8).forEach(x=>L.push(`- ${curta(x.desc)} — leva ~${fmtN(Math.round(x.qMed))} un. a cada ~${Math.round(x.int)} dias; última ${fmtDia(x.ult)}${x.preco?'; preço ref. '+brl(x.preco):''}`))}
   const ofs=ofertas(c.codigo);
   if(ofs.length){L.push('','AÇÕES DO MÊS (oferecer — comissão/prêmio extra)');ofs.slice(0,8).forEach(o=>L.push(`- ${curta(o.item.d)} [${o.a.fornecedor}] — ${o.motivo}; ${o.a.oferta?'':'ganho: '}${premioTxt(o)}; até ${fmtDia(o.a.fim)}${o.item.preco?'; preço '+brl(o.item.preco):''}`))}
@@ -844,7 +875,7 @@ const precoMG=x=>/^encarte/.test(x.fonte||'')&&x.preco?{v:x.preco,f:'encarte'}:p
 const selMG=p=>{const x=topMG().get(p);return x?` <span class="badge b-mg" title="${x.pos}º mais vendido da Tambasa em Minas">🏆 ${x.pos}º MG</span>`:''};
 function cardAt(x,d){
   const c=IX.cli.get(x.c);if(!c)return '';const a=analisar(c.codigo),r=regDoDia(c.codigo,d),p=prioridade(c),u=ultRegistro(c.codigo);
-  const rep=!a.produtos.length?topSegmento(segEf(c),3,naoTrab(c.codigo).f).map(z=>curta(z.d)):a.repor.slice(0,3).map(z=>curta(z.desc)),ac=ofertas(c.codigo).slice(0,3),mg=topMinas(c.codigo,2).filter(z=>!ac.some(o=>o.item.p===z.p));
+  const rep=!a.produtos.length?topSegmento(segEf(c),3,naoTrab(c.codigo).f).map(z=>curta(z.d)):a.repor.slice(0,3).map(z=>curta(z.desc)),ac=ofertas(c.codigo).slice(0,3),mg=topMinas(c.codigo,2).filter(z=>!ac.some(o=>o.item.p===z.p)),lv=presencial(c)?[]:listaVenda(c.codigo,5);
   const zap=linkZap(c.telefone,mensagem(c,a)),tel=linkTel(c.telefone),cls=r?{vendeu:'feito',nao_vendeu:'perdeu',nao_atendido:'ausente'}[r.res]:'';
   const outros=[0,1,2,3,4].map(i=>semSel+i).filter(z=>z!==d&&!diaAg(semSel,z).off);
   return `<div class="at ${cls}" data-c="${h(c.codigo)}">
@@ -853,6 +884,7 @@ function cardAt(x,d){
     <div class="small">${c.prospect?'Ainda não compra da Tambasa: apresente a empresa, deixe seu contato e pegue o nome do comprador. Chamex paga R$ 30 por cliente novo.':h(p.motivo.join('; ')||'manter relacionamento')}</div>
     ${u&&u!==r?`<div class="small muted">Último registro: ${txtReg(u)}</div>`:''}</div>
     <div class="row" style="flex:1 1 170px;justify-content:flex-end"><button class="btn sm" data-a="ficha">Ficha</button><button class="btn sm" data-a="pedido">🛒 Pedido</button>${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a>`:''}${zap?`<a class="btn sm zap" href="${h(zap)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}</div></div>
+   ${lv.length?`<div class="ofr" style="border-color:var(--ok)">💰 <b>Pra vender (com preço):</b> ${lv.map(z=>`${h(curta(z.d))} <b>${h(z.txt)}</b> <span class="muted small">(${TIPO_LV[z.tipo]})</span>`).join(' · ')}</div>`:''}
    ${rep.length||ac.length||mg.length?`<div class="ofr">${rep.length?`${!a.produtos.length?'Levar (mais vendidos do segmento)':'Repor'}: ${h(rep.join(', '))}<br>`:''}${ac.length?`Ações: ${ac.map((o,i)=>`<b>${h(curta(o.item.d))}</b> <span class="muted">(${h(premioTxt(o))})</span> <a href="#" data-a="nt" data-i="${i}" class="small" title="Ele não trabalha com isso — não oferecer mais" style="color:var(--muted)">✕</a>`).join(' · ')}`:''}${mg.length?`${ac.length?'<br>':''}🏆 Top Minas que ele não compra: ${mg.map(z=>`<b>${h(curta(z.d))}</b> <span class="muted">(${z.pos}º)</span>`).join(' · ')}`:''}</div>`:''}
    ${r?`<div class="small" style="margin-top:6px">${txtReg(r)}${r.retorno!=null?` · <b>retornar ${DSEM[dow(r.retorno)]} ${fmtDia(r.retorno).slice(0,5)}</b>`:''} <button class="btn sm" data-a="editar">Alterar</button></div>`:
    abertoRes?.c===c.codigo?'':`<div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn sm" data-r="vendeu" style="color:var(--ok)">✓ Vendeu</button><button class="btn sm" data-r="nao_vendeu" style="color:var(--warn)">Não vendeu</button><button class="btn sm" data-r="nao_atendido" style="color:var(--bad)">Não atendido</button>
@@ -1150,7 +1182,7 @@ async function push(){if(!NUVEM)return;const D=docsLocais(),col=COL;let erro=nul
   if(erro)toast(erro.code==='quota_exceeded'?'Espaço da nuvem cheio: salve um backup em Dados':'Não consegui salvar na nuvem; tento de novo na próxima alteração')}
 async function puxar(){const snap=await NUVEM.collection(COL).get();PUXADO=Date.now();if(snap.empty)return false;
   const D={};for(const d of snap.docs)D[d.id]=JSON.parse(JSON.stringify(d.data()));ULTIMO={};for(const id in D)ULTIMO[id]=JSON.stringify(D[id]);
-  if(D.config)S.config={...CFG0,...D.config.v};if(D.notas)S.notas=D.notas.v||{};
+  if(D.config){S.config={...CFG0,...D.config.v};migrarModelos()}if(D.notas)S.notas=D.notas.v||{};
   S.contatos=Object.keys(D).filter(i=>i.startsWith('contatos-')).flatMap(i=>D[i].v||[]);
   S.agenda={};for(const i in D)if(i.startsWith('agenda-'))S.agenda[i.slice(7)]=D[i].v;
   if(D.novos){const loc=new Map((S.novos||[]).map(n=>[n.codigo,n]));S.novos=(D.novos.v||[]).map(n=>Object.assign(loc.get(n.codigo)||{},n));S.clientes=S.clientes.filter(c=>!c.manual);await salvarLocal('novos')}
@@ -1635,7 +1667,7 @@ $('#listaCli').onclick=e=>{const d=e.target.closest('.cli');if(d)abrirFicha(d.da
 
 (async()=>{
   try{for(const k of TABS){const v=await carregar(k);if(v!=null)S[k]=v}}catch(e){toast('Armazenamento indisponível: '+e.message)}
-  S.config={...CFG0,...S.config};indexar();atualizarTudo();iniciarNuvem()})();
+  S.config={...CFG0,...S.config};migrarModelos();indexar();atualizarTudo();iniciarNuvem()})();
 </script>
 </body>
 </html>
