@@ -1,5 +1,5 @@
-// Rota Tambasa — funciona offline. Versão b7a887ca05
-const CACHE = 'rota-b7a887ca05';
+// Rota Tambasa — funciona offline. Versão 7e7b38ce2e
+const CACHE = 'rota-7e7b38ce2e';
 const BASICO = ['./', 'index.html', 'manifest.webmanifest', 'firebase-config.js', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(BASICO)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

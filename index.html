@@ -640,6 +640,9 @@ function mensagem(c,a){
   return tpl.replace(/\{(\w+)\}/g,(m,k)=>k in vars?vars[k]:m).replace(/,[ \t]*([!?.])/g,'$1').replace(/[ \t]{2,}/g,' ')}
 const linkTel=t=>{const d=str(t).replace(/\D/g,'').replace(/^0+/,'');return d.length>=10?'tel:+55'+d.replace(/^55(?=\d{10,11}$)/,''):null};
 const ehCelular=tel=>{const d=str(tel).replace(/\D/g,'').replace(/^55/,'');return d.length===11&&d[2]==='9'};
+// número marcado como "não tem WhatsApp" (vale enquanto o telefone do cadastro for o mesmo)
+const digTel=t=>str(t).replace(/\D/g,'');
+const temZap=c=>!(c.semZap&&c.semZap===digTel(c.telefone));
 function linkZap(tel,txt){let d=str(tel).replace(/\D/g,'').replace(/^0+/,'');if(d.length<10)return null;if(d.length<=11)d='55'+d;return `https://wa.me/${d}?text=${encodeURIComponent(txt||'')}`}
 
 function roteiro(c){
@@ -684,7 +687,7 @@ function renderLista(){
 
 function abrirFicha(cod){
   selCli=cod;const c=IX.cli.get(cod);if(!c)return;const a=analisar(cod),sug=sugestoes(cod),pres=presencial(c),ofs=ofertas(cod),ntL=c.naoTrab||[],mgF=topMinas(cod,8);
-  const msg=mensagem(c,a),zap=linkZap(c.telefone,msg);
+  const msg=mensagem(c,a),zap=temZap(c)?linkZap(c.telefone,msg):null;
   const ks=S.contatos.filter(k=>k.cliente===cod).sort((x,y)=>y.dia-x.dia);
   const tabP=(lst,cols)=>`<div class="tw"><table><thead><tr>${cols.map(x=>`<th class="${x[2]||''}">${x[0]}</th>`).join('')}</tr></thead><tbody>${lst.map(x=>`<tr>${cols.map(k=>`<td class="${k[2]||''}">${k[1](x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   $('#ficha').innerHTML=`<div class="card">
@@ -693,6 +696,7 @@ function abrirFicha(cod){
      <div class="muted small">${h(c.nome)} · cód. ${h(c.codigo)}${c.cnpj?' · '+h(c.cnpj):''}</div>
      ${c.prospect?'<div class="small"><span class="badge b-novo">🆕 prospect — ainda não compra</span></div>':c.convertido?`<div class="small"><span class="badge b-ativo">cliente novo desde ${fmtDia(c.convertido)}</span>${c.codigoPortal?' · código no Portal '+h(c.codigoPortal):' · falta o código do Portal (aba Prospecção)'}</div>`:''}
      <div class="small">${h([c.endereco,c.bairro,c.cidade,c.uf].filter(Boolean).join(', ')||'—')}</div>
+     ${temZap(c)?'':`<div class="small" style="color:var(--bad)">📵 Este número não tem WhatsApp — fora do disparo. <a href="#" id="fZapOk">Desfazer (tem WhatsApp)</a></div>`}
      <div class="small">Contato: <b>${h(c.contato||'—')}</b> · ${h(c.telefone||'sem telefone')}${c.perfil?' · compra mais: '+h(c.perfil):''}</div>
      <div class="row" style="margin-top:6px;max-width:520px"><select id="fSegEdit"><option value="">(definir segmento)</option>${[...new Set(SEGS.concat(segEf(c)?[segEf(c)]:[]))].map(x=>`<option${x===segEf(c)?' selected':''}>${h(x)}</option>`).join('')}</select>${segSug(c)?'<button class="btn sm pri" id="fSegOk" title="Sugerido pelo que ele compra">Confirmar segmento</button>':''}<input id="fContEdit" placeholder="Nome do comprador/contato" value="${h(c.contato||'')}"></div>
      <div style="margin-top:6px"><span class="badge b-${a.status.replace(' ','-')}">${a.status}</span> ${pres?'<span class="badge b-pres">presencial — '+h(S.config.vendedor)+'</span>':'<span class="badge">remoto</span>'}</div></div>
@@ -742,6 +746,7 @@ function abrirFicha(cod){
   $$('#ficha [data-ntm]').forEach(b=>b.onclick=()=>{const x=mgF[+b.dataset.ntm];marcarNaoTrab(cod,[{f:famKey(x.d),txt:curta(x.d)}]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')});
   $$('#ficha [data-unt]').forEach(b=>b.onclick=e=>{e.preventDefault();desmarcarNaoTrab(cod,+b.dataset.unt);abrirFicha(cod)});
   ligarPedido(cod);
+  if($('#fZapOk'))$('#fZapOk').onclick=e=>{e.preventDefault();delete c.semZap;salvar('clientes');abrirFicha(cod);toast('Ok, volta a receber pelo WhatsApp')};
   $('#cpMsg').onclick=()=>copiar($('#fMsg').value);
   $('#cpRot').onclick=()=>copiar($('#fRot').value);
   let t;$('#fNota').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{S.notas[cod]=e.target.value;salvar('notas');$('#fRot').value=roteiro(c)},500)};
@@ -876,7 +881,7 @@ const selMG=p=>{const x=topMG().get(p);return x?` <span class="badge b-mg" title
 function cardAt(x,d){
   const c=IX.cli.get(x.c);if(!c)return '';const a=analisar(c.codigo),r=regDoDia(c.codigo,d),p=prioridade(c),u=ultRegistro(c.codigo);
   const rep=!a.produtos.length?topSegmento(segEf(c),3,naoTrab(c.codigo).f).map(z=>curta(z.d)):a.repor.slice(0,3).map(z=>curta(z.desc)),ac=ofertas(c.codigo).slice(0,3),mg=topMinas(c.codigo,2).filter(z=>!ac.some(o=>o.item.p===z.p)),lv=presencial(c)?[]:listaVenda(c.codigo,5);
-  const zap=linkZap(c.telefone,mensagem(c,a)),tel=linkTel(c.telefone),cls=r?{vendeu:'feito',nao_vendeu:'perdeu',nao_atendido:'ausente'}[r.res]:'';
+  const zap=temZap(c)?linkZap(c.telefone,mensagem(c,a)):null,tel=linkTel(c.telefone),cls=r?{vendeu:'feito',nao_vendeu:'perdeu',nao_atendido:'ausente'}[r.res]:'';
   const outros=[0,1,2,3,4].map(i=>semSel+i).filter(z=>z!==d&&!diaAg(semSel,z).off);
   return `<div class="at ${cls}" data-c="${h(c.codigo)}">
    <div class="row" style="align-items:flex-start"><div style="flex:3 1 240px"><b>${h(c.fantasia||c.nome)}</b> ${x.ret?'<span class="badge b-esfriando">retorno</span>':''} ${c.prospect?`<span class="badge b-novo">🆕 prospect · ${h(segEf(c)||'loja')}</span>`:`<span class="badge b-${a.status.replace(' ','-')}">${a.status}</span>`}
@@ -1167,9 +1172,9 @@ let COL='',FBAUTH=null,EDPEND=null,NUVEM=null,UID=null,DL=null,ULTIMO={},FILA=Pr
 const statusNuvem=t=>{const e=$('#nuvem');if(e)e.textContent=t};
 function aplicarEdicoes(ed){for(const c of S.clientes){const e=ed[c.codigo];if(!e)continue;
   if(e.segmento_manual){c.segmento=e.segmento;c.segmento_manual=true}if(e.contato_manual){c.contato=e.contato;c.contato_manual=true}if(e.naoTrab?.length)c.naoTrab=e.naoTrab;
-  if(e.convertido){c.prospect=false;c.convertido=e.convertido}if(e.codigoPortal)c.codigoPortal=e.codigoPortal;if('pst' in e)c.pst=e.pst}}
+  if(e.convertido){c.prospect=false;c.convertido=e.convertido}if(e.codigoPortal)c.codigoPortal=e.codigoPortal;if('pst' in e)c.pst=e.pst;if(e.semZap)c.semZap=e.semZap}}
 function docsLocais(){const D={config:{v:S.config},notas:{v:S.notas}},ed={};
-  for(const c of S.clientes)if(c.segmento_manual||c.contato_manual||c.naoTrab?.length||c.convertido||c.pst||c.codigoPortal)ed[c.codigo]={segmento:c.segmento||'',segmento_manual:!!c.segmento_manual,contato:c.contato||'',contato_manual:!!c.contato_manual,naoTrab:c.naoTrab||[],convertido:c.convertido||0,codigoPortal:c.codigoPortal||'',pst:c.pst||''};
+  for(const c of S.clientes)if(c.segmento_manual||c.contato_manual||c.naoTrab?.length||c.convertido||c.pst||c.codigoPortal||c.semZap)ed[c.codigo]={semZap:c.semZap||'',segmento:c.segmento||'',segmento_manual:!!c.segmento_manual,contato:c.contato||'',contato_manual:!!c.contato_manual,naoTrab:c.naoTrab||[],convertido:c.convertido||0,codigoPortal:c.codigoPortal||'',pst:c.pst||''};
   D['clientes-edit']={v:ed};D.novos={v:S.novos||[]};
   for(const k of S.contatos){const w='contatos-'+segundaDe(k.plano??k.dia);(D[w]=D[w]||{v:[]}).v.push(k)}
   for(const w in S.agenda)D['agenda-'+w]={v:S.agenda[w]};
@@ -1403,7 +1408,7 @@ function renderDisparo(){
   const cfg=S.config,hoje=hojeDia(),f=$('#dFiltro').value;
   let cand=S.clientes.filter(c=>{if(pulados.has(c.codigo))return false;const u=IX.ultContato.get(c.codigo);if(u!=null&&hoje-u<cfg.intervaloRecontato)return false;
     const sg=$('#dSeg').value;if(sg&&!(sg==='__sem'?!segEf(c):sg==='__sug'?segSug(c):segEf(c)===sg))return false;
-    if($('#dCel').value==='cel'&&!ehCelular(c.telefone))return false;if(f==='remoto'&&presencial(c))return false;if(f==='pres'&&!presencial(c))return false;return true});
+    if(!temZap(c))return false;if($('#dCel').value==='cel'&&!ehCelular(c.telefone))return false;if(f==='remoto'&&presencial(c))return false;if(f==='pres'&&!presencial(c))return false;return true});
   cand=cand.map(prioridade).filter(x=>x.s>0&&x.a.ult!=null).sort((x,y)=>y.s-x.s);
   const total=cand.length;DISP=cand.slice(0,+cfg.limiteDia||30);
   const enviadosHoje=S.contatos.filter(k=>k.dia===hoje&&k.tipo==='whatsapp').length;
@@ -1416,7 +1421,8 @@ function renderDisparo(){
         <a class="btn sm zap${linkZap(x.c.telefone)?'':' hide'}" data-a="zap" target="_blank" rel="noopener" href="#">WhatsApp</a>
         <button class="btn sm" data-a="copiar">Copiar</button>
         <button class="btn sm pri" data-a="ok">Enviado ✓</button>
-        <button class="btn sm" data-a="pular">Pular</button></div></div>
+        <button class="btn sm" data-a="pular">Pular</button>
+        <button class="btn sm" data-a="semzap" title="O número não tem WhatsApp — sai do disparo" style="color:var(--bad)">📵 Não tem WhatsApp</button></div></div>
     <textarea rows="3">${h(msg)}</textarea></div>`}).join(''):'<div class="card vazio">Nenhum cliente para hoje. Importe o histórico de compras ou ajuste o intervalo de recontato.</div>'}
 $('#dispLista').addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b)return;const card=b.closest('[data-i]'),x=DISP[+card.dataset.i],txt=card.querySelector('textarea').value;
@@ -1425,6 +1431,7 @@ $('#dispLista').addEventListener('click',e=>{
   if(b.dataset.a==='ficha'){ir('clientes');abrirFicha(x.c.codigo);return}
   if(b.dataset.a==='ok'){registrar(x.c.codigo,'whatsapp',txt.slice(0,140));toast('Registrado como enviado')}
   if(b.dataset.a==='pular')pulados.add(x.c.codigo);
+  if(b.dataset.a==='semzap'){x.c.semZap=digTel(x.c.telefone);salvar('clientes');registrar(x.c.codigo,'sem WhatsApp','número '+(x.c.telefone||'')+' não tem WhatsApp');toast('Marcado: número sem WhatsApp — não entra mais no disparo (dá pra desfazer na ficha)')}
   renderDisparo()});
 $('#dFiltro').onchange=renderDisparo;$('#dSeg').onchange=renderDisparo;$('#dCel').onchange=renderDisparo;
 $('#dExport').onclick=()=>{const L=[['codigo','cliente','cidade','contato','telefone','status','motivo','mensagem'].join(';')];
