@@ -717,7 +717,8 @@ function abrirFicha(cod){
      <div class="small">${h([c.endereco,c.bairro,c.cidade,c.uf].filter(Boolean).join(', ')||'—')}${c.endereco?` <button class="btn sm" data-cp="${h(endCli(c))}" title="Copiar endereço">📋 Copiar endereço</button>`:''}</div>
      ${temZap(c)?'':`<div class="small" style="color:var(--bad)">📵 Este número não tem WhatsApp — fora do disparo. <a href="#" id="fZapOk">Desfazer (tem WhatsApp)</a></div>`}
      <div class="small">Contato: <b>${h(c.contato||'—')}</b> · ${h(c.telefone||'sem telefone')}${c.perfil?' · compra mais: '+h(c.perfil):''}</div>
-     <div class="row" style="margin-top:6px;max-width:520px"><select id="fSegEdit"><option value="">(definir segmento)</option>${[...new Set(SEGS.concat(segEf(c)?[segEf(c)]:[]))].map(x=>`<option${x===segEf(c)?' selected':''}>${h(x)}</option>`).join('')}</select>${segSug(c)?'<button class="btn sm pri" id="fSegOk" title="Sugerido pelo que ele compra">Confirmar segmento</button>':''}<input id="fContEdit" placeholder="Nome do comprador/contato" value="${h(c.contato||'')}"></div>
+     <div class="row" style="margin-top:6px;max-width:520px"><select id="fSegEdit"><option value="">(definir segmento)</option>${[...new Set(SEGS.concat(segEf(c)?[segEf(c)]:[]))].map(x=>`<option${x===segEf(c)?' selected':''}>${h(x)}</option>`).join('')}</select>${segSug(c)?'<button class="btn sm pri" id="fSegOk" title="Sugerido pelo que ele compra">Confirmar segmento</button>':''}<input id="fContEdit" placeholder="Nome do comprador/contato" value="${h(c.contato||'')}"><input id="fTelEdit" type="tel" inputmode="tel" placeholder="Telefone / WhatsApp com DDD" title="Atualizar telefone (fica salvo mesmo quando a base do Portal for atualizada)" value="${h(c.telefone||'')}"></div>
+     ${c.tel_manual&&c.tel_orig!=null&&digTel(c.tel_orig)!==digTel(c.telefone)?`<div class="small muted">Telefone atualizado por você · no Portal: ${h(c.tel_orig||'sem telefone')}</div>`:''}
      <div style="margin-top:6px"><span class="badge b-${a.status.replace(' ','-')}">${a.status}</span> ${pres?'<span class="badge b-pres">presencial — '+h(S.config.vendedor)+'</span>':'<span class="badge">remoto</span>'}</div></div>
      <div class="row" style="flex:1 1 200px;justify-content:flex-end">
        ${zap?`<a class="btn zap" href="${h(zap)}" target="_blank" rel="noopener">WhatsApp</a>`:''}
@@ -759,6 +760,7 @@ function abrirFicha(cod){
   const setSeg=v=>{c.segmento=v;c.segmento_manual=true;IX.ofertas.delete(cod);CACHE.delete(cod);salvar('clientes');renderLista();abrirFicha(cod);toast('Segmento salvo')};
   $('#fSegEdit').onchange=e=>setSeg(e.target.value);
   if($('#fSegOk'))$('#fSegOk').onclick=()=>setSeg(c.segmento_sugerido);
+  $('#fTelEdit').onchange=e=>{const v=e.target.value.trim();if(digTel(v)===digTel(c.telefone))return;if(!c.tel_manual)c.tel_orig=c.telefone||'';c.telefone=v;c.tel_manual=true;salvar('clientes');CACHE.delete(cod);abrirFicha(cod);toast(v?'Telefone atualizado':'Telefone apagado')};
   $('#fContEdit').onchange=e=>{c.contato=e.target.value.trim();c.contato_manual=true;salvar('clientes');CACHE.delete(cod);abrirFicha(cod);toast('Contato salvo')};
   $$('#ficha [data-nt]').forEach(b=>b.onclick=()=>{const o=ofs[+b.dataset.nt];marcarNaoTrab(cod,[ntDeOferta(o)]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')});
   $$('#ficha [data-nts]').forEach(b=>b.onclick=()=>{const x=sug[+b.dataset.nts];marcarNaoTrab(cod,[{f:famKey(x.desc),txt:curta(x.desc)}]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')});
@@ -1193,10 +1195,10 @@ function relatorioSemana(seg){
 let COL='',FBAUTH=null,EDPEND=null,NUVEM=null,UID=null,DL=null,ULTIMO={},FILA=Promise.resolve(),PUXADO=0,tPush;
 const statusNuvem=t=>{const e=$('#nuvem');if(e)e.textContent=t};
 function aplicarEdicoes(ed){for(const c of S.clientes){const e=ed[c.codigo];if(!e)continue;
-  if(e.segmento_manual){c.segmento=e.segmento;c.segmento_manual=true}if(e.contato_manual){c.contato=e.contato;c.contato_manual=true}if(e.naoTrab?.length)c.naoTrab=e.naoTrab;
+  if(e.segmento_manual){c.segmento=e.segmento;c.segmento_manual=true}if(e.contato_manual){c.contato=e.contato;c.contato_manual=true}if(e.tel_manual){if(!c.tel_manual)c.tel_orig=c.telefone||'';c.telefone=e.telefone;c.tel_manual=true}if(e.naoTrab?.length)c.naoTrab=e.naoTrab;
   if(e.convertido){c.prospect=false;c.convertido=e.convertido}if(e.codigoPortal)c.codigoPortal=e.codigoPortal;if('pst' in e)c.pst=e.pst;if(e.semZap)c.semZap=e.semZap}}
 function docsLocais(){const D={config:{v:S.config},notas:{v:S.notas}},ed={};
-  for(const c of S.clientes)if(c.segmento_manual||c.contato_manual||c.naoTrab?.length||c.convertido||c.pst||c.codigoPortal||c.semZap)ed[c.codigo]={semZap:c.semZap||'',segmento:c.segmento||'',segmento_manual:!!c.segmento_manual,contato:c.contato||'',contato_manual:!!c.contato_manual,naoTrab:c.naoTrab||[],convertido:c.convertido||0,codigoPortal:c.codigoPortal||'',pst:c.pst||''};
+  for(const c of S.clientes)if(c.segmento_manual||c.contato_manual||c.tel_manual||c.naoTrab?.length||c.convertido||c.pst||c.codigoPortal||c.semZap)ed[c.codigo]={semZap:c.semZap||'',segmento:c.segmento||'',segmento_manual:!!c.segmento_manual,contato:c.contato||'',contato_manual:!!c.contato_manual,telefone:c.tel_manual?c.telefone||'':'',tel_manual:!!c.tel_manual,naoTrab:c.naoTrab||[],convertido:c.convertido||0,codigoPortal:c.codigoPortal||'',pst:c.pst||''};
   D['clientes-edit']={v:ed};D.novos={v:S.novos||[]};
   for(const k of S.contatos){const w='contatos-'+segundaDe(k.plano??k.dia);(D[w]=D[w]||{v:[]}).v.push(k)}
   for(const w in S.agenda)D['agenda-'+w]={v:S.agenda[w]};
@@ -1752,7 +1754,7 @@ $$('input[type=file][data-t]').forEach(inp=>inp.onchange=async()=>{
 $$('[data-modelo]').forEach(b=>b.onclick=()=>{const t=b.dataset.modelo;const cols=Object.keys(SCHEMA[t]);baixar(`modelo_${t}.csv`,'﻿'+cols.join(';')+'\n','text/csv')});
 $('#bkExport').onclick=()=>{const o={};TABS.forEach(k=>o[k]=S[k]);baixar(`rota-tambasa-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(o),'application/json')};
 $('#bkImport').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());
-  if(o.clientes&&S.clientes.length){const old=new Map(S.clientes.map(c=>[c.codigo,c]));for(const c of o.clientes){const v=old.get(c.codigo);if(!v)continue;if(v.segmento_manual){c.segmento=v.segmento;c.segmento_manual=true}if(v.contato)c.contato=v.contato;if(v.naoTrab&&!c.naoTrab)c.naoTrab=v.naoTrab;if(v.fantasia&&!c.fantasia)c.fantasia=v.fantasia}
+  if(o.clientes&&S.clientes.length){const old=new Map(S.clientes.map(c=>[c.codigo,c]));for(const c of o.clientes){const v=old.get(c.codigo);if(!v)continue;if(v.segmento_manual){c.segmento=v.segmento;c.segmento_manual=true}if(v.contato)c.contato=v.contato;if(v.tel_manual){c.tel_orig=c.telefone||'';c.telefone=v.telefone;c.tel_manual=true}if(v.naoTrab&&!c.naoTrab)c.naoTrab=v.naoTrab;if(v.fantasia&&!c.fantasia)c.fantasia=v.fantasia}
     const novos=new Set(o.clientes.map(c=>c.codigo));for(const v of S.clientes)if(!novos.has(v.codigo))o.clientes.push(v)}
   for(const k of ['contatos','notas','agenda'])if(o[k]&&!Object.keys(o[k]).length&&S[k]&&Object.keys(S[k]).length)delete o[k];
   for(const k of TABS)if(o[k]!=null){S[k]=o[k];await salvar(k)}S.config={...CFG0,...S.config};indexar();atualizarTudo();toast('Backup restaurado')}catch(err){alert('Backup inválido: '+err.message)}e.target.value=''};
