@@ -498,6 +498,8 @@ function indexar(){
       const u=v.unitario||(v.qtd?v.valor/v.qtd:0),g=ultP.get(v.produto);if(u&&(!g||g[0]<=v.dia))ultP.set(v.produto,[v.dia,u])}
   }
   for(const c of vpc.keys())if(!cli.has(c)){const o={codigo:c,nome:'Cliente '+c,cidade:''};S.clientes.push(o);cli.set(c,o)}
+  // nomes do catálogo que vieram com sobra do PDF ("… 141 195-3 OUTRO PRODUTO", "* CATÁLOGO 2025 …")
+  for(const p of S.catalogo){const d=limpaDesc(p.descricao);if(d!==p.descricao)p.descricao=d}
   const cat=new Map(S.catalogo.map(p=>[p.codigo,p]));
   const ultContato=new Map(),ultReg=new Map();for(const k of S.contatos){if((ultContato.get(k.cliente)??-1)<k.dia)ultContato.set(k.cliente,k.dia);if(k.res&&(ultReg.get(k.cliente)?.dia??-1)<=k.dia)ultReg.set(k.cliente,k)}
   IX={cli,vpc,cpp,ppc,desc,cat,ultContato,ultReg,ultP};
@@ -1055,10 +1057,14 @@ function pedSalvar(cod){try{const v=pedido(cod);v.length?localStorage.setItem(pe
 function pedAdd(cod,p,q){const v=pedido(cod),x=v.find(i=>i.p===p);if(x)x.q+=q||1;else v.push({p,d:pDesc(p),q:q||1,preco:Math.round((pPreco(p)||0)*100)/100});pedSalvar(cod)}
 const pedTotal=v=>v.reduce((s,i)=>s+(i.q||0)*(i.preco||0),0);
 let BUSCA_P=null;
+function limpaDesc(d){d=str(d);const x=d.replace(/(\s\*)?\s*(CAT[ÁA]LOGO 20\d\d.*|\s\d{1,5}(?: \d{1,4})? ?\d{1,3}-\d(\s.*)?)$/,'').replace(/[\s*]+$/,'').trim();return x.length>=8?x:d}
+// busca por palavras em qualquer ordem; ignora hífen, ponto e espaço dentro da palavra (wd40 = wd-40, 1/2 = 1 / 2)
+const compacta=t=>t.replace(/[^a-z0-9]+/g,'');
+function casaBusca(texto,q){const ws=norm(q).split(/\s+/).filter(Boolean);if(!ws.length)return true;const c=compacta(texto);return ws.every(w=>texto.includes(w)||c.includes(compacta(w)))}
 function buscaProdutos(q){
   if(!BUSCA_P){const m=new Map();for(const p of S.catalogo)m.set(p.codigo,p.descricao);for(const [p,d] of IX.desc)if(!m.has(p))m.set(p,d);BUSCA_P=[...m.entries()].map(([p,d])=>[p,d,norm(p+' '+d)])}
   const ws=norm(q).split(/\s+/).filter(Boolean);if(!ws.length)return [];
-  return BUSCA_P.filter(([,,t])=>ws.every(w=>t.includes(w))).slice(0,12).map(([p,d])=>({p,d}))}
+  return BUSCA_P.filter(([,,t])=>casaBusca(t,q)).slice(0,12).map(([p,d])=>({p,d}))}
 // ações em que o produto participa
 function acoesDoProduto(p){if(!IX.prodAcao){IX.prodAcao=new Map();for(const a of IX.acoes)for(const it of a.itens){if(!IX.prodAcao.has(it.p))IX.prodAcao.set(it.p,[]);IX.prodAcao.get(it.p).push({a,it})}}return IX.prodAcao.get(p)||[]}
 // ganho extra estimado de um item vendido (comissão extra %, R$ por unidade, R$ a cada N un, dobro…)
@@ -1312,7 +1318,7 @@ function renderProsp(){
   const tot=arr.length;arr=arr.slice(0,150);
   $('#pInfo').textContent=`${tot} loja(s)${tot>150?' — mostrando 150, use os filtros':''}`;
   const dias=[0,1,2,3,4].map(i=>semanaAtual()+i).filter(d=>d>=hojeDia()&&!diaAg(semanaAtual(),d).off);
-  $('#pLista').innerHTML=arr.map(c=>{const st=sit.get(c.codigo),k=ultRegistro(c.codigo),zap=linkZap(c.telefone,mensagem(c,analisar(c.codigo))),tel=linkTel(c.telefone),top=topSegmento(segEf(c)).map(z=>curta(z.d));
+  $('#pLista').innerHTML=arr.map(c=>{const st=sit.get(c.codigo),k=ultRegistro(c.codigo),zap=linkZap(c.telefone,' '),tel=linkTel(c.telefone),top=topSegmento(segEf(c)).map(z=>curta(z.d));
     const naSemana=dias.find(d=>diaAg(semanaAtual(),d).itens.some(x=>x.c===c.codigo));
     return `<div class="at${st==='convertido'?' feito':st==='descartado'?' ausente':''}" data-p="${h(c.codigo)}">
      <div class="row" style="align-items:flex-start"><div style="flex:3 1 260px"><b>${h(c.fantasia||c.nome)}</b> <span class="badge ${SIT_CLS[st]}">${SIT_TXT[st]}</span> ${segEf(c)?`<span class="badge">${h(segEf(c))}</span>`:''}
@@ -1320,7 +1326,7 @@ function renderProsp(){
       ${k?`<div class="small muted">Último: ${txtReg(k)}</div>`:''}
       ${st==='convertido'?`<div class="small" style="color:var(--ok)">Cliente desde ${fmtDia(c.convertido)}${c.codigoPortal?' · código no Portal '+h(c.codigoPortal):' · <b>cadastre no Portal e informe o código</b>'}</div>`:''}
       ${top.length&&st!=='convertido'?`<div class="small">Levar: ${h(top.join(', '))}</div>`:''}</div>
-     <div class="row" style="flex:1 1 200px;justify-content:flex-end">${zap?`<a class="btn sm zap" href="${h(zap)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a><button class="btn sm" data-cp="${h(endCli(c))}" title="Copiar endereço (para colar no mapa offline)">📋 Endereço</button>`:''}<button class="btn sm" data-pa2="ficha">Ficha</button></div></div>
+     <div class="row" style="flex:1 1 200px;justify-content:flex-end">${zap?`<a class="btn sm zap" href="#" data-pz="${h(c.codigo)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a><button class="btn sm" data-cp="${h(endCli(c))}" title="Copiar endereço (para colar no mapa offline)">📋 Endereço</button>`:''}<button class="btn sm" data-pa2="ficha">Ficha</button></div></div>
      <div class="row" style="justify-content:flex-start;margin-top:8px">
       ${st==='convertido'?`<button class="btn sm" data-pa2="codigo">${c.codigoPortal?'Alterar':'Informar'} código do Portal</button>`:
        `<button class="btn sm pri" data-pa2="virou">✓ Virou cliente</button><button class="btn sm" data-pa2="semint">Sem interesse agora</button><button class="btn sm" data-pa2="naoatend">Não atendeu</button>
@@ -1342,6 +1348,8 @@ $('#pLista').addEventListener('click',async e=>{const b=e.target.closest('[data-
   if(a==='voltar'){delete c.pst;c.pst='';salvar('clientes');renderProsp();return}});
 $('#pLista').addEventListener('change',e=>{const t=e.target;if(t.dataset.pa2!=='agendar'||!t.value)return;const cod=t.closest('[data-p]').dataset.p,c=IX.cli.get(cod),d=+t.value;
   diaAg(semanaAtual(),d).itens.push({c:cod,modo:presencial(c)?'pres':'rem',prosp:true,fixo:true});salvar('agenda');renderProsp();toast(`Colocado na Semana: ${DSEM[dow(d)]} ${fmtDia(d).slice(0,5)}`)});
+// mensagem do WhatsApp só é montada no clique (montar 150 de uma vez deixava a aba lenta)
+$('#pLista').addEventListener('click',e=>{const a=e.target.closest('[data-pz]');if(!a)return;const c=IX.cli.get(a.dataset.pz);if(c)a.href=linkZap(c.telefone,mensagem(c,analisar(c.codigo)))},true);
 let tpb;$('#pBuscaP').oninput=()=>{clearTimeout(tpb);tpb=setTimeout(renderProsp,150)};for(const id of ['#pSit','#pSeg','#pLoc'])$(id).onchange=renderProsp;
 
 /* ===================== perto de casa: kit por ramo + lojas do ramo mais perto ===================== */
@@ -1696,7 +1704,7 @@ function renderCatalogo(){
   if($('#cInd').options.length<2){const n=new Map();for(const p of S.catalogo){const m=industria(p.codigo,p.descricao);if(m)n.set(m,(n.get(m)||0)+1)}
     $('#cInd').innerHTML='<option value="">Todas as indústrias</option>'+[...n.entries()].filter(x=>x[1]>=3).sort((a,b)=>a[0].localeCompare(b[0])).map(([m,c])=>`<option value="${h(m)}">${h(nomeInd(m))} (${c})</option>`).join('')}
   let arr=S.catalogo;if(cat)arr=arr.filter(p=>p.categoria===cat);if(ind)arr=arr.filter(p=>industria(p.codigo,p.descricao)===ind);if(camp==='camp')arr=arr.filter(p=>acoesDoProduto(p.codigo).length);if(camp==='mg')arr=arr.filter(p=>topMG().has(p.codigo)).sort((a,b)=>topMG().get(a.codigo).pos-topMG().get(b.codigo).pos);if(per)arr=arr.filter(p=>noPerfil(per,p)&&p.preco>0);
-  if(q)arr=arr.filter(p=>norm(p.codigo+' '+p.descricao+' '+(p.marca||'')+' '+(p.categoria||'')).includes(q));
+  if(q)arr=arr.filter(p=>casaBusca(norm(p.codigo+' '+p.descricao+' '+(p.marca||'')+' '+(p.categoria||'')),q));
   const tot=arr.length;arr=arr.slice(0,300);
   $('#cTab').innerHTML=arr.map(p=>`<tr><td>${h(p.codigo)}</td><td>${h(p.descricao)}${selMG(p.codigo)}</td><td>${h(nomeInd(industria(p.codigo,p.descricao)))}${acoesDoProduto(p.codigo).length?' <span class="badge b-ativo">campanha</span>':''}</td><td class="small">${h(p.categoria||'')}</td><td class="n">${p.preco?brl(p.preco):'—'}</td><td class="n so-rep">${fmtN(comPct(p.codigo,p.descricao,1))}%</td><td class="n so-rep">${IX.cpp.get(p.codigo)?.size||0}</td></tr>`).join('');
   const infoI=ind&&infoInd(ind);
