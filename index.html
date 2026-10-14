@@ -1345,8 +1345,23 @@ const RAMOS={
     itens:['87607','87212','55806','29508','63889','89378','19290','75034','87877','71536','77260','33060','135132','90218']},
   torno:{nome:'⚙️ Torno / solda / serralheria',rx:/torn|usinag|solda|serralh|metalur|caldeir|revestim/,
     itens:['86242','122053','86606','55510','86800','33682','17286','67184','55048','88707','78450','78467']},
-  lava:{nome:'🚿 Lava-jato / borracharia / posto',rx:/lava|jato|borrach|pneu|posto|estetica auto|polimento/,
-    itens:['87297','63983','63744','13207','87702','29805','22050','13398','13477','10024','47307','83978']}};
+  lava:{nome:'🚿 Lava-jato / borracharia / posto',rx:/lava|jato|borrach|pneu|posto/,
+    itens:['87610','63744','138159','87297','63413','13398','63985','13477','22175','87634','47690','83978'],
+    lista:[['Shampoo / lava auto',['87610','87633','138182','138167','63983','87335']],
+      ['Desengraxante e limpeza pesada',['63744','130311','148376','63341','37020']],
+      ['Pneus e plásticos',['138159','87297','63384','63413','13940','63345','112962']],
+      ['Vidros e interior',['13398','138119','63985','112345','63608','13687','13477','13208']],
+      ['Panos, esponjas e pincéis',['22175','29805','126001','87634','87611']],
+      ['Mangueira, esguicho e equipamentos',['47690','10024','47307','87400','50971','138085','87423','138060']],
+      ['Proteção do funcionário',['83978','2125']]]},
+  polimento:{nome:'✨ Polimento / estética automotiva',rx:/polim|estetica|detail|vitrific|cristaliz|martelinho|envelopa|insulfilm|pelicula/,
+    itens:['33676','13573','138123','63658','148911','148896','148902','78499','78379','144548','22175','22050'],
+    lista:[['Massa de polir e polidores',['33676','33677','89939','13573','138123']],
+      ['Ceras e proteção',['63658','87984','13207','148911','148912','87702']],
+      ['Restauração e descontaminação',['148896','148902','112962','148901','87568','13687']],
+      ['Lixas de correção',['78500','78499','78379','144547']],
+      ['Politriz e discos',['110611','85551','75202','144548','144549']],
+      ['Panos e acabamento',['22175','22050','112613','126001','33711','87611']]]}};
 const KIT_USO=['29345','130203','84460']; // uso da loja: papel higiênico, papel toalha, saco de lixo
 const lsGet=(k,d)=>{try{return localStorage.getItem(k)??d}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const textoRamo=c=>norm([c.nome,c.fantasia,segEf(c),(c.categorias||[]).join(' ')].join(' ')).replace(/[+-]/g,' ');
@@ -1358,7 +1373,7 @@ function topRamo(r){if(RAMO_TOP.has(r))return RAMO_TOP.get(r);const n=new Map(),
   for(const c of S.clientes){if(c.prospect||!ramoDe(c).includes(r))continue;const vis=new Set();for(const v of IX.vpc.get(c.codigo)||[])if(v.dia>=lim&&!vis.has(v.produto)){vis.add(v.produto);n.set(v.produto,(n.get(v.produto)||0)+1)}}
   RAMO_TOP.set(r,n);return n}
 // kit fixo + até 6 itens que também saem no ramo (famílias que o kit ainda não cobre)
-function itensRamo(r){const fixos=RAMOS[r].itens,n=topRamo(r),fam=new Set(fixos.concat(KIT_USO).map(p=>famKey(pDesc(p)))),extra=[];
+function itensRamo(r){const fixos=RAMOS[r].itens,n=topRamo(r),fam=new Set(fixos.concat(KIT_USO,(RAMOS[r].lista||[]).flatMap(g=>g[1])).map(p=>famKey(pDesc(p)))),extra=[];
   for(const [p,q] of [...n.entries()].sort((a,b)=>b[1]-a[1])){if(extra.length>=6||q<2)break;const k=famKey(pDesc(p));if(fixos.includes(p)||!pPreco(p)||fam.has(k)||USO_RX.test(norm(pDesc(p))))continue;fam.add(k);extra.push(p)}
   return {fixos,extra,uso:KIT_USO}}
 /* proteção da revenda: autopeças, auto elétrica, casa de parafuso e mercadinho/loja de bairro que JÁ são clientes revendem esses itens
@@ -1373,7 +1388,7 @@ function tipoRevenda(c){const n=norm([c.nome,c.fantasia,(c.categorias||[]).join(
   if(REV_BAIRRO.test(n)||/supermerc|mercear|utilidad|variedad|materiais de constr|agropec|papelaria/.test(s))return 'bairro';
   return /autopec/.test(s)?'cidade':''}
 // tipo de item p/ proteção: família, separando as genéricas (LIMPA contato ≠ LIMPA pneu, CHAVE combinada ≠ CHAVE de fenda…)
-const PROT_GEN=new Set(['LIMPA','CHAVE','PROTETOR','ENGATE','ARCO','LAVA','CERA','GRAXA','ESGUICHO']);
+const PROT_GEN=new Set(['MASSA','LAVA','SILICONE','LIXA','LIMPA','CHAVE','PROTETOR','ENGATE','ARCO','LAVA','CERA','GRAXA','ESGUICHO']);
 const famProt=p=>{const k=famKey(pDesc(p));if(k.includes(' ')||!PROT_GEN.has(k))return k;const w=norm(pDesc(p)).toUpperCase().replace(/[^A-Z0-9]+/g,' ').split(' ').filter(x=>x.length>1&&!/^\d/.test(x));return w[1]?k+' '+w[1].slice(0,4):k};
 let REV_IX=null,REVS=[];const PROT=new Map();
 function revendas(){if(REV_IX===IX)return REVS;REV_IX=IX;PROT.clear();const lim=hojeDia()-365;
@@ -1395,9 +1410,10 @@ function renderPerto(){
   const r=$('#tRamo').value||'oficina',raio=+$('#tRaio').value,quem=$('#tQuem').value,K=itensRamo(r),n=topRamo(r),prot=protLigada();$('#tProt').value=prot?'1':'0';
   // revendas da área presencial que vendem cada tipo de item
   const revPres=revendas().filter(x=>presencial(x.c)),nRev=p=>{const f=famProt(p);return revPres.filter(x=>x.fams.has(f)).length};
-  const linha=p=>{const c=IX.cat.get(p),q=n.get(p)||0,nr=nRev(p);
-    return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line,#e5e7eb);padding:6px 0;gap:6px"><div style="flex:3 1 200px">${h(curta(pDesc(p)))} ${acoesDoProduto(p).length?'<span class="badge">campanha</span>':''}<div class="small muted">cód. ${h(p)}${c?.unidade?' · '+h(c.unidade):''}${q?` · ${q} loja(s) do ramo compram`:''}${nr?` · <span title="clientes revendedores que já vendem esse tipo de item">🛡 ${nr} revenda(s)</span>`:''}</div></div><b style="white-space:nowrap">${pPreco(p)?brl(pPreco(p)):'—'}</b></div>`};
-  $('#tKit').innerHTML=`<div class="grp">Principais</div>${K.fixos.map(linha).join('')}${K.extra.length?`<div class="grp">Também saem bem no ramo</div>${K.extra.map(linha).join('')}`:''}<div class="grp">Uso da loja (no máx. 1–2)</div>${K.uso.map(linha).join('')}`;
+  const linha=(p,pre='')=>{const c=IX.cat.get(p),q=n.get(p)||0,nr=nRev(p);
+    return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line,#e5e7eb);padding:6px 0;gap:6px"><div style="flex:3 1 200px">${pre}${h(curta(pDesc(p)))} ${acoesDoProduto(p).length?'<span class="badge">campanha</span>':''}<div class="small muted">cód. ${h(p)}${c?.unidade?' · '+h(c.unidade):''}${q?` · ${q} loja(s) do ramo compram`:''}${nr?` · <span title="clientes revendedores que já vendem esse tipo de item">🛡 ${nr} revenda(s)</span>`:''}</div></div><b style="white-space:nowrap">${pPreco(p)?brl(pPreco(p)):'—'}</b></div>`};
+  const L=RAMOS[r].lista,ess=p=>K.fixos.includes(p)?'⭐ ':'';
+  $('#tKit').innerHTML=(L?`<div class="row" style="justify-content:space-between;margin-top:6px"><span class="small muted">⭐ = principais (vão no 🛒 Kit no pedido) · ${L.reduce((s,g)=>s+g[1].length,0)} produtos</span><button class="btn sm" id="tCopiar">📋 Copiar lista</button></div>`+L.map(([g,ps])=>`<div class="grp">${h(g)}</div>${ps.map(p=>linha(p,ess(p))).join('')}`).join(''):`<div class="grp">Principais</div>${K.fixos.map(p=>linha(p)).join('')}`)+`${K.extra.length?`<div class="grp">Também saem bem no ramo</div>${K.extra.map(p=>linha(p)).join('')}`:''}<div class="grp">Uso da loja (no máx. 1–2)</div>${K.uso.map(p=>linha(p)).join('')}`;
   const kitSet=[...K.fixos,...K.extra];
   let lojas=S.clientes.filter(c=>presencial(c)&&c.pst!=='descartado'&&!c.convertido&&ramoDe(c).includes(r)).map(c=>({c,km:kmLoja(c)})).filter(x=>raio>=99||(x.km!=null&&x.km<=raio));
   if(quem==='cli')lojas=lojas.filter(x=>!x.c.prospect);if(quem==='prosp')lojas=lojas.filter(x=>x.c.prospect);
@@ -1420,6 +1436,9 @@ function renderPerto(){
       ${bloq.length?`<div class="small muted">🛡 Não oferecer ${lista(bloq)} — já revendido por ${nomesRev(quemRev)}</div>`:''}</div>
       <div class="row" style="flex:1 1 180px;justify-content:flex-end">${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a>`:''}<button class="btn sm" data-ta="ficha">Ficha</button><button class="btn sm" data-ta="kit">🛒 Kit no pedido</button>
       ${naSemana?`<span class="small muted">na Semana: ${DSEM[dow(naSemana)]} ${fmtDia(naSemana).slice(0,5)}</span>`:dias.length?`<select data-ta="agendar" style="width:auto;padding:4px 6px;font-size:13px"><option value="">Pôr na Semana…</option>${dias.map(d=>`<option value="${d}">${DSEM[dow(d)]} ${fmtDia(d).slice(0,5)}</option>`).join('')}</select>`:''}</div></div></div>`}).join('')||'<div class="card vazio">Nenhuma loja desse ramo nesse raio. Aumente a distância.</div>'}
+$('#tKit').addEventListener('click',async e=>{if(!e.target.closest('#tCopiar'))return;const R=RAMOS[$('#tRamo').value];if(!R?.lista)return;
+  const t=`*${R.nome.replace(/^\S+\s/,'')} — produtos Tambasa*\n`+R.lista.map(([g,ps])=>`\n*${g}*\n`+ps.map(p=>{const c=IX.cat.get(p);return `• ${curta(pDesc(p))}${c?.unidade?' ('+c.unidade+')':''}${pPreco(p)?' — '+brl(pPreco(p)):''}`}).join('\n')).join('\n')+`\n\nRCA ${S.config.codigoRCA||'37223'} · preços sujeitos a alteração`;
+  try{await navigator.clipboard.writeText(t);toast('Lista copiada — cole no WhatsApp')}catch(err){prompt('Copie a lista:',t)}});
 $('#tLojas').addEventListener('click',e=>{const b=e.target.closest('[data-ta]');if(!b||b.tagName==='SELECT')return;const cod=b.closest('[data-t]').dataset.t;
   if(b.dataset.ta==='ficha'){ir('clientes');abrirFicha(cod);return}
   if(b.dataset.ta==='kit'){const K=itensRamo($('#tRamo').value),pp=IX.ppc.get(cod)||new Set(),v=pedido(cod);let n=0;
