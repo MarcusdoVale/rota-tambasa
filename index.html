@@ -280,10 +280,11 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
         <select id="tRamo"></select>
         <select id="tRaio"><option value="0.8">Até 800 m</option><option value="1.5">Até 1,5 km</option><option value="3">Até 3 km</option><option value="99">Toda a cidade</option></select>
         <select id="tQuem"><option value="">Clientes e prospects</option><option value="cli">Só clientes</option><option value="prosp">Só prospects</option></select>
+        <select id="tProt" title="Autopeças, auto elétrica e mercadinhos que já são clientes revendem esses itens. Vender direto ao consumidor final perto deles tira a venda deles."><option value="1">🛡 Proteger a revenda</option><option value="0">Mostrar tudo</option></select>
       </div>
     </div>
     <div class="cols2" style="margin-top:12px">
-      <div class="card"><h3 style="margin-top:0">🎒 O que levar</h3><div class="muted small">Preço da base — confira no site antes de fechar.</div><div id="tKit"></div></div>
+      <div class="card"><h3 style="margin-top:0">🎒 O que levar</h3><div class="muted small">Preço da base — confira no site antes de fechar. 🛡 = clientes revendedores da cidade já vendem esse tipo de item: para oficina/consumidor final perto deles, não oferecer.</div><div id="tKit"></div></div>
       <div><div class="card"><div class="row"><div style="flex:2 1 200px"><b id="tInfo"></b></div><a class="btn sm" id="tRota" target="_blank" rel="noopener">🚶 Rota a pé (Maps)</a></div></div><div id="tLojas" style="margin-top:12px"></div></div>
     </div>
   </section>
@@ -1360,39 +1361,74 @@ function topRamo(r){if(RAMO_TOP.has(r))return RAMO_TOP.get(r);const n=new Map(),
 function itensRamo(r){const fixos=RAMOS[r].itens,n=topRamo(r),fam=new Set(fixos.concat(KIT_USO).map(p=>famKey(pDesc(p)))),extra=[];
   for(const [p,q] of [...n.entries()].sort((a,b)=>b[1]-a[1])){if(extra.length>=6||q<2)break;const k=famKey(pDesc(p));if(fixos.includes(p)||!pPreco(p)||fam.has(k)||USO_RX.test(norm(pDesc(p))))continue;fam.add(k);extra.push(p)}
   return {fixos,extra,uso:KIT_USO}}
+/* proteção da revenda: autopeças, auto elétrica, casa de parafuso e mercadinho/loja de bairro que JÁ são clientes revendem esses itens
+   para oficina e para o povo do bairro. Vender o mesmo tipo de item direto ao consumidor final perto deles tira a venda deles. */
+const REV_AUTO=/casa da borracha|auto ?pec|eletro ?pec|moto ?pec|auto ?eletr|\bpecas\b|bateria|parafus|ferrament|distribui|atacad/;
+const SERV_RX=/oficin|mecanic|retific|torn|usinag|solda|serralh|lava|jato|borrach|funilar|lataria|locac|constru|transport|agronegoc|fertiliz/;
+const REV_BAIRRO=/mercad|mercear|mercant|supermerc|armazem|emporio|variedad|utilidad|materia(l|is) de constr|agropec|limpeza|ferrag/;
+const RAIO_REV=1; // km: mercadinho/loja de bairro protege só quem está perto dela; revenda automotiva protege a cidade toda
+// vale para clientes e prospects (só clientes com compra entram em revendas()). '' = consumidor final; 'cidade' = revenda automotiva/ferramenta; 'bairro' = mercadinho, material de construção, agropecuária…
+function tipoRevenda(c){const n=norm([c.nome,c.fantasia,(c.categorias||[]).join(' ')].join(' ')),s=norm(segEf(c));
+  if(REV_AUTO.test(n))return 'cidade';if(SERV_RX.test(n))return '';
+  if(REV_BAIRRO.test(n)||/supermerc|mercear|utilidad|variedad|materiais de constr|agropec|papelaria/.test(s))return 'bairro';
+  return /autopec/.test(s)?'cidade':''}
+// tipo de item p/ proteção: família, separando as genéricas (LIMPA contato ≠ LIMPA pneu, CHAVE combinada ≠ CHAVE de fenda…)
+const PROT_GEN=new Set(['LIMPA','CHAVE','PROTETOR','ENGATE','ARCO','LAVA','CERA','GRAXA','ESGUICHO']);
+const famProt=p=>{const k=famKey(pDesc(p));if(k.includes(' ')||!PROT_GEN.has(k))return k;const w=norm(pDesc(p)).toUpperCase().replace(/[^A-Z0-9]+/g,' ').split(' ').filter(x=>x.length>1&&!/^\d/.test(x));return w[1]?k+' '+w[1].slice(0,4):k};
+let REV_IX=null,REVS=[];const PROT=new Map();
+function revendas(){if(REV_IX===IX)return REVS;REV_IX=IX;PROT.clear();const lim=hojeDia()-365;
+  REVS=S.clientes.map(c=>{const t=tipoRevenda(c);if(!t)return null;const fams=new Set();for(const v of IX.vpc.get(c.codigo)||[])if(v.dia>=lim&&v.produto)fams.add(famProt(v.produto));
+    return fams.size?{c,t,xy:BAIRRO_XY[nbairro(c.bairro)],fams}:null}).filter(Boolean);return REVS}
+const kmXY=(p,q)=>Math.hypot((p[0]-q[0])*111,(p[1]-q[1])*111*Math.cos(p[0]*Math.PI/180));
+// para um consumidor final: tipo de item -> revendas (clientes, compraram nos últimos 12 meses) que já vendem aquilo perto dele
+function protecao(c){if(tipoRevenda(c))return null;const R=revendas();if(PROT.has(c.codigo))return PROT.get(c.codigo);
+  const ci=norm(c.cidade),xy=BAIRRO_XY[nbairro(c.bairro)],m=new Map();
+  for(const r of R){if(r.c.codigo===c.codigo||norm(r.c.cidade)!==ci)continue;
+    if(r.t==='bairro'&&!(xy&&r.xy?kmXY(xy,r.xy)<=RAIO_REV:nbairro(r.c.bairro)===nbairro(c.bairro)))continue;
+    for(const f of r.fams){if(!m.has(f))m.set(f,[]);m.get(f).push(r.c)}}
+  PROT.set(c.codigo,m);return m}
+const protegido=(c,p)=>protecao(c)?.get(famProt(p))||null;
+const protLigada=()=>lsGet('rota_tProt','1')==='1';
+const nomesRev=a=>h(a.slice(0,2).map(x=>curta(x.fantasia||x.nome)).join(', '))+(a.length>2?` +${a.length-2}`:'');
 function renderPerto(){
   if(!$('#tRamo').options.length){$('#tRamo').innerHTML=Object.entries(RAMOS).map(([k,r])=>`<option value="${k}">${h(r.nome)}</option>`).join('');$('#tRamo').value=lsGet('rota_tRamo','oficina');$('#tRaio').value=lsGet('rota_tRaio','0.8')}
-  const r=$('#tRamo').value||'oficina',raio=+$('#tRaio').value,quem=$('#tQuem').value,K=itensRamo(r),n=topRamo(r);
-  const linha=p=>{const c=IX.cat.get(p),q=n.get(p)||0;
-    return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line,#e5e7eb);padding:6px 0;gap:6px"><div style="flex:3 1 200px">${h(curta(pDesc(p)))} ${acoesDoProduto(p).length?'<span class="badge">campanha</span>':''}<div class="small muted">cód. ${h(p)}${c?.unidade?' · '+h(c.unidade):''}${q?` · ${q} loja(s) do ramo compram`:''}</div></div><b style="white-space:nowrap">${pPreco(p)?brl(pPreco(p)):'—'}</b></div>`};
+  const r=$('#tRamo').value||'oficina',raio=+$('#tRaio').value,quem=$('#tQuem').value,K=itensRamo(r),n=topRamo(r),prot=protLigada();$('#tProt').value=prot?'1':'0';
+  // revendas da área presencial que vendem cada tipo de item
+  const revPres=revendas().filter(x=>presencial(x.c)),nRev=p=>{const f=famProt(p);return revPres.filter(x=>x.fams.has(f)).length};
+  const linha=p=>{const c=IX.cat.get(p),q=n.get(p)||0,nr=nRev(p);
+    return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line,#e5e7eb);padding:6px 0;gap:6px"><div style="flex:3 1 200px">${h(curta(pDesc(p)))} ${acoesDoProduto(p).length?'<span class="badge">campanha</span>':''}<div class="small muted">cód. ${h(p)}${c?.unidade?' · '+h(c.unidade):''}${q?` · ${q} loja(s) do ramo compram`:''}${nr?` · <span title="clientes revendedores que já vendem esse tipo de item">🛡 ${nr} revenda(s)</span>`:''}</div></div><b style="white-space:nowrap">${pPreco(p)?brl(pPreco(p)):'—'}</b></div>`};
   $('#tKit').innerHTML=`<div class="grp">Principais</div>${K.fixos.map(linha).join('')}${K.extra.length?`<div class="grp">Também saem bem no ramo</div>${K.extra.map(linha).join('')}`:''}<div class="grp">Uso da loja (no máx. 1–2)</div>${K.uso.map(linha).join('')}`;
   const kitSet=[...K.fixos,...K.extra];
   let lojas=S.clientes.filter(c=>presencial(c)&&c.pst!=='descartado'&&!c.convertido&&ramoDe(c).includes(r)).map(c=>({c,km:kmLoja(c)})).filter(x=>raio>=99||(x.km!=null&&x.km<=raio));
   if(quem==='cli')lojas=lojas.filter(x=>!x.c.prospect);if(quem==='prosp')lojas=lojas.filter(x=>x.c.prospect);
-  lojas.sort((a,b)=>(a.km??99)-(b.km??99)||(a.c.fantasia||a.c.nome).localeCompare(b.c.fantasia||b.c.nome));
+  const cheia=c=>protLigada()&&!tipoRevenda(c)&&[...K.fixos,...K.extra].every(p=>(IX.ppc.get(c.codigo)||new Set()).has(p)||protegido(c,p));
+  lojas.sort((a,b)=>cheia(a.c)-cheia(b.c)||(a.km??99)-(b.km??99)||(a.c.fantasia||a.c.nome).localeCompare(b.c.fantasia||b.c.nome));
   $('#tInfo').textContent=`${lojas.length} loja(s) do ramo ${raio>=99?'na cidade':'até '+String(raio).replace('.',',')+' km de casa'}`;
   // rota a pé saindo de casa pelas 9 mais perto e voltando
   const ends=lojas.filter(x=>x.c.endereco).slice(0,9).map(x=>endCli(x.c));
   $('#tRota').classList.toggle('hide',!ends.length);
   if(ends.length)$('#tRota').href='https://www.google.com/maps/dir/?api=1&travelmode=walking&origin='+encodeURIComponent(casaEnd())+'&destination='+encodeURIComponent(casaEnd())+'&waypoints='+encodeURIComponent(ends.join('|'));
   const dias=[0,1,2,3,4].map(i=>semanaAtual()+i).filter(d=>d>=hojeDia()&&!diaAg(semanaAtual(),d).off);
-  $('#tLojas').innerHTML=lojas.slice(0,80).map(({c,km})=>{const pp=IX.ppc.get(c.codigo)||new Set(),ja=kitSet.filter(p=>pp.has(p)),falta=kitSet.filter(p=>!pp.has(p)),tel=linkTel(c.telefone),k=ultRegistro(c.codigo);
+  $('#tLojas').innerHTML=lojas.slice(0,80).map(({c,km})=>{const pp=IX.ppc.get(c.codigo)||new Set(),ja=kitSet.filter(p=>pp.has(p)),falta0=kitSet.filter(p=>!pp.has(p)),tel=linkTel(c.telefone),k=ultRegistro(c.codigo);
+    const rev=tipoRevenda(c),bloq=prot&&!rev?falta0.filter(p=>protegido(c,p)):[],falta=falta0.filter(p=>!bloq.includes(p)),quemRev=[...new Set(bloq.flatMap(p=>protegido(c,p)))];
     const naSemana=dias.find(d=>diaAg(semanaAtual(),d).itens.some(x=>x.c===c.codigo)),lista=a=>h(a.slice(0,4).map(p=>curta(pDesc(p))).join(', '))+(a.length>4?'…':'');
     return `<div class="at" data-t="${h(c.codigo)}"><div class="row" style="align-items:flex-start"><div style="flex:3 1 240px">
-      <b>${h(c.fantasia||c.nome)}</b> <span class="badge">${c.prospect?'prospect':'cliente'}</span> <span class="small muted">${km==null?'sem localização':km<1?Math.round(km*20)*50+' m':km.toFixed(1).replace('.',',')+' km'}</span>
+      <b>${h(c.fantasia||c.nome)}</b> <span class="badge">${c.prospect?'prospect':'cliente'}</span>${rev?' <span class="badge b-ativo" title="Revende esses itens: vender para ela é bom, é quem atende as oficinas">revenda 👍</span>':''}${bloq.length&&!falta.length?' <span class="badge b-esfriando" title="Tudo do kit já é vendido por clientes revendedores perto dela">⚠ atendida pela revenda</span>':''} <span class="small muted">${km==null?'sem localização':km<1?Math.round(km*20)*50+' m':km.toFixed(1).replace('.',',')+' km'}</span>
       <div class="small muted">${h([c.endereco,c.bairro].filter(Boolean).join(' — '))}${c.telefone?' · '+h(c.telefone):''}</div>
       ${k?`<div class="small muted">Último: ${txtReg(k)}</div>`:''}
-      ${c.prospect?'':`<div class="small">${ja.length?`Já compra: ${lista(ja)} · `:''}<b>Oferecer:</b> ${lista(falta)}</div>`}</div>
+      <div class="small">${!c.prospect&&ja.length?`Já compra: ${lista(ja)} · `:''}${falta.length?`<b>Oferecer:</b> ${lista(falta)}`:bloq.length?'<b>Nada do kit para oferecer</b>':''}</div>
+      ${bloq.length?`<div class="small muted">🛡 Não oferecer ${lista(bloq)} — já revendido por ${nomesRev(quemRev)}</div>`:''}</div>
       <div class="row" style="flex:1 1 180px;justify-content:flex-end">${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a>`:''}<button class="btn sm" data-ta="ficha">Ficha</button><button class="btn sm" data-ta="kit">🛒 Kit no pedido</button>
       ${naSemana?`<span class="small muted">na Semana: ${DSEM[dow(naSemana)]} ${fmtDia(naSemana).slice(0,5)}</span>`:dias.length?`<select data-ta="agendar" style="width:auto;padding:4px 6px;font-size:13px"><option value="">Pôr na Semana…</option>${dias.map(d=>`<option value="${d}">${DSEM[dow(d)]} ${fmtDia(d).slice(0,5)}</option>`).join('')}</select>`:''}</div></div></div>`}).join('')||'<div class="card vazio">Nenhuma loja desse ramo nesse raio. Aumente a distância.</div>'}
 $('#tLojas').addEventListener('click',e=>{const b=e.target.closest('[data-ta]');if(!b||b.tagName==='SELECT')return;const cod=b.closest('[data-t]').dataset.t;
   if(b.dataset.ta==='ficha'){ir('clientes');abrirFicha(cod);return}
   if(b.dataset.ta==='kit'){const K=itensRamo($('#tRamo').value),pp=IX.ppc.get(cod)||new Set(),v=pedido(cod);let n=0;
-    for(const p of K.fixos)if(!pp.has(p)&&!v.some(i=>i.p===p)){pedAdd(cod,p,1);n++}
-    toast(n?`${n} item(ns) do kit no pedido — ajuste as quantidades na ficha`:'Ele já compra tudo do kit (ou já está no pedido)');ir('clientes');abrirFicha(cod)}});
+    const c=IX.cli.get(cod),pula=p=>protLigada()&&c&&!tipoRevenda(c)&&protegido(c,p);let nb=0;
+    for(const p of K.fixos)if(!pp.has(p)&&!v.some(i=>i.p===p)){if(pula(p)){nb++;continue}pedAdd(cod,p,1);n++}
+    toast((n?`${n} item(ns) do kit no pedido — ajuste as quantidades na ficha`:'Nada do kit para pôr no pedido')+(nb?` · ${nb} ficaram de fora (revenda perto já vende)`:''));ir('clientes');abrirFicha(cod)}});
 $('#tLojas').addEventListener('change',e=>{const t=e.target;if(t.dataset.ta!=='agendar'||!t.value)return;const cod=t.closest('[data-t]').dataset.t,c=IX.cli.get(cod),d=+t.value;
   diaAg(semanaAtual(),d).itens.push({c:cod,modo:'pres',prosp:!!c.prospect,fixo:true});salvar('agenda');renderPerto();toast(`Colocado na Semana: ${DSEM[dow(d)]} ${fmtDia(d).slice(0,5)}`)});
-$('#tRamo').onchange=()=>{lsSet('rota_tRamo',$('#tRamo').value);renderPerto()};$('#tRaio').onchange=()=>{lsSet('rota_tRaio',$('#tRaio').value);renderPerto()};$('#tQuem').onchange=renderPerto;
+$('#tRamo').onchange=()=>{lsSet('rota_tRamo',$('#tRamo').value);renderPerto()};$('#tRaio').onchange=()=>{lsSet('rota_tRaio',$('#tRaio').value);renderPerto()};$('#tQuem').onchange=renderPerto;$('#tProt').onchange=()=>{lsSet('rota_tProt',$('#tProt').value);renderPerto()};
 
 /* ===================== novo cliente (porta a porta) com pedido pronto ===================== */
 // quantidade típica de cada produto num pedido de lojas daquele tipo (mediana da quantidade por linha de venda)
