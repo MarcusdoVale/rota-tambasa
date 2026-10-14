@@ -57,6 +57,7 @@ label{font-size:13px;color:var(--muted);display:block;margin:8px 0 4px;font-weig
 .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}.btn.pri:hover{filter:brightness(1.08);background:var(--brand)}
 .btn.zap{background:#1fa855;border-color:#1fa855;color:#fff}.btn.zap:hover{filter:brightness(1.08);background:#1fa855}
 .btn.sm{padding:5px 10px;font-size:13px;border-radius:8px}
+.btn.esc-vendeu{background:var(--ok);border-color:var(--ok);color:#fff!important}.btn.esc-nao_vendeu{background:var(--warn);border-color:var(--warn);color:#fff!important}.btn.esc-nao_atendido{background:var(--bad);border-color:var(--bad);color:#fff!important}
 .muted{color:var(--muted)}.small{font-size:13px}
 .lista-itens{max-height:calc(100vh - 270px);overflow:auto;margin-top:10px}
 .cli{padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:2px}
@@ -902,16 +903,16 @@ function cardAt(x,d){
   const zap=temZap(c)?linkZap(c.telefone,mensagem(c,a)):null,tel=linkTel(c.telefone),cls=r?{vendeu:'feito',nao_vendeu:'perdeu',nao_atendido:'ausente'}[r.res]:'';
   const outros=[0,1,2,3,4].map(i=>semSel+i).filter(z=>z!==d&&!diaAg(semSel,z).off);
   return `<div class="at ${cls}" data-c="${h(c.codigo)}">
-   <div class="row" style="align-items:flex-start"><div style="flex:3 1 240px"><b>${h(c.fantasia||c.nome)}</b> ${x.ret?'<span class="badge b-esfriando">retorno</span>':''} ${c.prospect?`<span class="badge b-novo">🆕 prospect · ${h(segEf(c)||'loja')}</span>`:`<span class="badge b-${a.status.replace(' ','-')}">${a.status}</span>`}
+   <div class="row" style="align-items:flex-start"><div style="flex:3 1 240px"><b>${h(c.fantasia||c.nome)}</b> ${r?(r.res==='nao_atendido'?'<span class="badge b-esfriando">⏳ não atendido</span>':'<span class="badge b-ativo">✅ atendido</span>'):''} ${x.ret?'<span class="badge b-esfriando">retorno</span>':''} ${c.prospect?`<span class="badge b-novo">🆕 prospect · ${h(segEf(c)||'loja')}</span>`:`<span class="badge b-${a.status.replace(' ','-')}">${a.status}</span>`}
     <div class="small muted">${h(c.codigo)} · ${h([c.bairro,c.cidade].filter(Boolean).join(' — '))} · ${h(c.telefone||'sem telefone')}${c.contato?' · falar com '+h(c.contato):''}</div>
     <div class="small">${c.prospect?'Ainda não compra da Tambasa: apresente a empresa, deixe seu contato e pegue o nome do comprador. Chamex paga R$ 30 por cliente novo.':h(p.motivo.join('; ')||'manter relacionamento')}</div>
     ${u&&u!==r?`<div class="small muted">Último registro: ${txtReg(u)}</div>`:''}</div>
     <div class="row" style="flex:1 1 170px;justify-content:flex-end"><button class="btn sm" data-a="ficha">Ficha</button><button class="btn sm" data-a="pedido">🛒 Pedido</button>${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a>`:''}${zap?`<a class="btn sm zap" href="${h(zap)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}</div></div>
    ${lv.length?`<div class="ofr" style="border-color:var(--ok)">💰 <b>Pra vender (com preço):</b> ${lv.map(z=>`${h(curta(z.d))} <b>${h(z.txt)}</b> <span class="muted small">(${TIPO_LV[z.tipo]})</span>`).join(' · ')}</div>`:''}
    ${rep.length||ac.length||mg.length?`<div class="ofr">${rep.length?`${!a.produtos.length?'Levar (mais vendidos do segmento)':'Repor'}: ${h(rep.join(', '))}<br>`:''}${ac.length?`Ações: ${ac.map((o,i)=>`<b>${h(curta(o.item.d))}</b> <span class="muted">(${h(premioTxt(o))})</span> <a href="#" data-a="nt" data-i="${i}" class="small" title="Ele não trabalha com isso — não oferecer mais" style="color:var(--muted)">✕</a>`).join(' · ')}`:''}${mg.length?`${ac.length?'<br>':''}🏆 Top Minas que ele não compra: ${mg.map(z=>`<b>${h(curta(z.d))}</b> <span class="muted">(${z.pos}º)</span>`).join(' · ')}`:''}</div>`:''}
-   ${r?`<div class="small" style="margin-top:6px">${txtReg(r)}${r.retorno!=null?` · <b>retornar ${DSEM[dow(r.retorno)]} ${fmtDia(r.retorno).slice(0,5)}</b>`:''} <button class="btn sm" data-a="editar">Alterar</button></div>`:
-   abertoRes?.c===c.codigo?'':`<div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn sm" data-r="vendeu" style="color:var(--ok)">✓ Vendeu</button><button class="btn sm" data-r="nao_vendeu" style="color:var(--warn)">Não vendeu</button><button class="btn sm" data-r="nao_atendido" style="color:var(--bad)">Não atendido</button>
-     <select data-a="mover" style="width:auto;max-width:170px;padding:4px 6px;font-size:13px"><option value="">Mover para…</option>${outros.map(z=>`<option value="${z}">${DSEM[dow(z)]} ${fmtDia(z).slice(0,5)}</option>`).join('')}<option value="x">Tirar da semana</option></select></div>`}
+   ${abertoRes?.c===c.codigo?'':`<div class="row" style="justify-content:flex-start;margin-top:8px">${[['vendeu','✓ Vendeu','ok'],['nao_vendeu','Não vendeu','warn'],['nao_atendido','Não atendido','bad']].map(([k,t,cor])=>`<button class="btn sm${r?.res===k?' esc-'+k:''}" data-r="${k}" style="color:var(--${cor})"${r?.res===k?' title="Escolhido — clique para alterar os detalhes"':''}>${r?.res===k&&k!=='vendeu'?'✓ ':''}${t}</button>`).join('')}
+     ${r?'':`<select data-a="mover" style="width:auto;max-width:170px;padding:4px 6px;font-size:13px"><option value="">Mover para…</option>${outros.map(z=>`<option value="${z}">${DSEM[dow(z)]} ${fmtDia(z).slice(0,5)}</option>`).join('')}<option value="x">Tirar da semana</option></select>`}</div>
+     ${r?`<div class="small" style="margin-top:6px">${txtReg(r)}${r.retorno!=null?` · <b>retornar ${DSEM[dow(r.retorno)]} ${fmtDia(r.retorno).slice(0,5)}</b>`:''}</div>`:''}`}
    ${abertoRes?.c===c.codigo?formRes(c,d,abertoRes.res,r):''}</div>`}
 
 function formRes(c,d,res,r){
