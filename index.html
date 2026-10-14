@@ -142,6 +142,7 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
     <button data-v="acoes">Campanhas</button>
     <button data-v="novo">Novo cliente</button>
     <button data-v="prosp">Prospecção</button>
+    <button data-v="perto">Perto de casa</button>
     <button data-v="ganhos">Ganhos</button>
     <button data-v="catalogo">Catálogo</button>
     <button data-v="dados">Dados</button>
@@ -268,6 +269,22 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
         <div class="small muted" style="margin-top:8px">A loja entra como <b>novo cliente</b>. Ao salvar a venda ela passa para a base; depois é só cadastrar no Portal e informar o código.</div>
         <div id="nRecentes"></div>
       </div>
+    </div>
+  </section>
+
+  <!-- PERTO DE CASA (dia de chuva / andar pouco) -->
+  <section id="v-perto" class="hide">
+    <div class="card">
+      <div class="row"><div style="flex:2 1 260px"><h2>Perto de casa</h2><div class="muted small">Para dia de chuva: escolha o ramo e veja o que levar e quais lojas desse ramo ficam mais perto de casa (clientes e prospects).</div></div></div>
+      <div class="row">
+        <select id="tRamo"></select>
+        <select id="tRaio"><option value="0.8">Até 800 m</option><option value="1.5">Até 1,5 km</option><option value="3">Até 3 km</option><option value="99">Toda a cidade</option></select>
+        <select id="tQuem"><option value="">Clientes e prospects</option><option value="cli">Só clientes</option><option value="prosp">Só prospects</option></select>
+      </div>
+    </div>
+    <div class="cols2" style="margin-top:12px">
+      <div class="card"><h3 style="margin-top:0">🎒 O que levar</h3><div class="muted small">Preço da base — confira no site antes de fechar.</div><div id="tKit"></div></div>
+      <div><div class="card"><div class="row"><div style="flex:2 1 200px"><b id="tInfo"></b></div><a class="btn sm" id="tRota" target="_blank" rel="noopener">🚶 Rota a pé (Maps)</a></div></div><div id="tLojas" style="margin-top:12px"></div></div>
     </div>
   </section>
 
@@ -1320,6 +1337,63 @@ $('#pLista').addEventListener('change',e=>{const t=e.target;if(t.dataset.pa2!=='
   diaAg(semanaAtual(),d).itens.push({c:cod,modo:presencial(c)?'pres':'rem',prosp:true,fixo:true});salvar('agenda');renderProsp();toast(`Colocado na Semana: ${DSEM[dow(d)]} ${fmtDia(d).slice(0,5)}`)});
 let tpb;$('#pBuscaP').oninput=()=>{clearTimeout(tpb);tpb=setTimeout(renderProsp,150)};for(const id of ['#pSit','#pSeg','#pLoc'])$(id).onchange=renderProsp;
 
+/* ===================== perto de casa: kit por ramo + lojas do ramo mais perto ===================== */
+// kits montados com o que oficinas/tornos da base mais compram (2 anos) + itens de lava-jato do catálogo
+const RAMOS={
+  oficina:{nome:'🔧 Oficina mecânica / diesel / moto',rx:/oficin|mecan|auto ?pec|autopec|auto ?center|autocenter|diesel|moto|pecas|bateria|lataria|funilar|molas|retific|autoeletr|automot/,
+    itens:['87607','87212','55806','29508','63889','89378','19290','75034','87877','71536','77260','33060','135132','90218']},
+  torno:{nome:'⚙️ Torno / solda / serralheria',rx:/torn|usinag|solda|serralh|metalur|caldeir|revestim/,
+    itens:['86242','122053','86606','55510','86800','33682','17286','67184','55048','88707','78450','78467']},
+  lava:{nome:'🚿 Lava-jato / borracharia / posto',rx:/lava|jato|borrach|pneu|posto|estetica auto|polimento/,
+    itens:['87297','63983','63744','13207','87702','29805','22050','13398','13477','10024','47307','83978']}};
+const KIT_USO=['29345','130203','84460']; // uso da loja: papel higiênico, papel toalha, saco de lixo
+const lsGet=(k,d)=>{try{return localStorage.getItem(k)??d}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const textoRamo=c=>norm([c.nome,c.fantasia,segEf(c),(c.categorias||[]).join(' ')].join(' ')).replace(/[+-]/g,' ');
+const ramoDe=c=>Object.keys(RAMOS).filter(k=>RAMOS[k].rx.test(textoRamo(c)));
+const kmLoja=c=>{const p=BAIRRO_XY[nbairro(c.bairro)];return p?kmCasa(p):null};
+// quantas lojas do ramo compraram cada produto (2 anos)
+const RAMO_TOP=new Map();
+function topRamo(r){if(RAMO_TOP.has(r))return RAMO_TOP.get(r);const n=new Map(),lim=hojeDia()-730;
+  for(const c of S.clientes){if(c.prospect||!ramoDe(c).includes(r))continue;const vis=new Set();for(const v of IX.vpc.get(c.codigo)||[])if(v.dia>=lim&&!vis.has(v.produto)){vis.add(v.produto);n.set(v.produto,(n.get(v.produto)||0)+1)}}
+  RAMO_TOP.set(r,n);return n}
+// kit fixo + até 6 itens que também saem no ramo (famílias que o kit ainda não cobre)
+function itensRamo(r){const fixos=RAMOS[r].itens,n=topRamo(r),fam=new Set(fixos.concat(KIT_USO).map(p=>famKey(pDesc(p)))),extra=[];
+  for(const [p,q] of [...n.entries()].sort((a,b)=>b[1]-a[1])){if(extra.length>=6||q<2)break;const k=famKey(pDesc(p));if(fixos.includes(p)||!pPreco(p)||fam.has(k)||USO_RX.test(norm(pDesc(p))))continue;fam.add(k);extra.push(p)}
+  return {fixos,extra,uso:KIT_USO}}
+function renderPerto(){
+  if(!$('#tRamo').options.length){$('#tRamo').innerHTML=Object.entries(RAMOS).map(([k,r])=>`<option value="${k}">${h(r.nome)}</option>`).join('');$('#tRamo').value=lsGet('rota_tRamo','oficina');$('#tRaio').value=lsGet('rota_tRaio','0.8')}
+  const r=$('#tRamo').value||'oficina',raio=+$('#tRaio').value,quem=$('#tQuem').value,K=itensRamo(r),n=topRamo(r);
+  const linha=p=>{const c=IX.cat.get(p),q=n.get(p)||0;
+    return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line,#e5e7eb);padding:6px 0;gap:6px"><div style="flex:3 1 200px">${h(curta(pDesc(p)))} ${acoesDoProduto(p).length?'<span class="badge">campanha</span>':''}<div class="small muted">cód. ${h(p)}${c?.unidade?' · '+h(c.unidade):''}${q?` · ${q} loja(s) do ramo compram`:''}</div></div><b style="white-space:nowrap">${pPreco(p)?brl(pPreco(p)):'—'}</b></div>`};
+  $('#tKit').innerHTML=`<div class="grp">Principais</div>${K.fixos.map(linha).join('')}${K.extra.length?`<div class="grp">Também saem bem no ramo</div>${K.extra.map(linha).join('')}`:''}<div class="grp">Uso da loja (no máx. 1–2)</div>${K.uso.map(linha).join('')}`;
+  const kitSet=[...K.fixos,...K.extra];
+  let lojas=S.clientes.filter(c=>presencial(c)&&c.pst!=='descartado'&&!c.convertido&&ramoDe(c).includes(r)).map(c=>({c,km:kmLoja(c)})).filter(x=>raio>=99||(x.km!=null&&x.km<=raio));
+  if(quem==='cli')lojas=lojas.filter(x=>!x.c.prospect);if(quem==='prosp')lojas=lojas.filter(x=>x.c.prospect);
+  lojas.sort((a,b)=>(a.km??99)-(b.km??99)||(a.c.fantasia||a.c.nome).localeCompare(b.c.fantasia||b.c.nome));
+  $('#tInfo').textContent=`${lojas.length} loja(s) do ramo ${raio>=99?'na cidade':'até '+String(raio).replace('.',',')+' km de casa'}`;
+  // rota a pé saindo de casa pelas 9 mais perto e voltando
+  const ends=lojas.filter(x=>x.c.endereco).slice(0,9).map(x=>endCli(x.c));
+  $('#tRota').classList.toggle('hide',!ends.length);
+  if(ends.length)$('#tRota').href='https://www.google.com/maps/dir/?api=1&travelmode=walking&origin='+encodeURIComponent(casaEnd())+'&destination='+encodeURIComponent(casaEnd())+'&waypoints='+encodeURIComponent(ends.join('|'));
+  const dias=[0,1,2,3,4].map(i=>semanaAtual()+i).filter(d=>d>=hojeDia()&&!diaAg(semanaAtual(),d).off);
+  $('#tLojas').innerHTML=lojas.slice(0,80).map(({c,km})=>{const pp=IX.ppc.get(c.codigo)||new Set(),ja=kitSet.filter(p=>pp.has(p)),falta=kitSet.filter(p=>!pp.has(p)),tel=linkTel(c.telefone),k=ultRegistro(c.codigo);
+    const naSemana=dias.find(d=>diaAg(semanaAtual(),d).itens.some(x=>x.c===c.codigo)),lista=a=>h(a.slice(0,4).map(p=>curta(pDesc(p))).join(', '))+(a.length>4?'…':'');
+    return `<div class="at" data-t="${h(c.codigo)}"><div class="row" style="align-items:flex-start"><div style="flex:3 1 240px">
+      <b>${h(c.fantasia||c.nome)}</b> <span class="badge">${c.prospect?'prospect':'cliente'}</span> <span class="small muted">${km==null?'sem localização':km<1?Math.round(km*20)*50+' m':km.toFixed(1).replace('.',',')+' km'}</span>
+      <div class="small muted">${h([c.endereco,c.bairro].filter(Boolean).join(' — '))}${c.telefone?' · '+h(c.telefone):''}</div>
+      ${k?`<div class="small muted">Último: ${txtReg(k)}</div>`:''}
+      ${c.prospect?'':`<div class="small">${ja.length?`Já compra: ${lista(ja)} · `:''}<b>Oferecer:</b> ${lista(falta)}</div>`}</div>
+      <div class="row" style="flex:1 1 180px;justify-content:flex-end">${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a>`:''}<button class="btn sm" data-ta="ficha">Ficha</button><button class="btn sm" data-ta="kit">🛒 Kit no pedido</button>
+      ${naSemana?`<span class="small muted">na Semana: ${DSEM[dow(naSemana)]} ${fmtDia(naSemana).slice(0,5)}</span>`:dias.length?`<select data-ta="agendar" style="width:auto;padding:4px 6px;font-size:13px"><option value="">Pôr na Semana…</option>${dias.map(d=>`<option value="${d}">${DSEM[dow(d)]} ${fmtDia(d).slice(0,5)}</option>`).join('')}</select>`:''}</div></div></div>`}).join('')||'<div class="card vazio">Nenhuma loja desse ramo nesse raio. Aumente a distância.</div>'}
+$('#tLojas').addEventListener('click',e=>{const b=e.target.closest('[data-ta]');if(!b||b.tagName==='SELECT')return;const cod=b.closest('[data-t]').dataset.t;
+  if(b.dataset.ta==='ficha'){ir('clientes');abrirFicha(cod);return}
+  if(b.dataset.ta==='kit'){const K=itensRamo($('#tRamo').value),pp=IX.ppc.get(cod)||new Set(),v=pedido(cod);let n=0;
+    for(const p of K.fixos)if(!pp.has(p)&&!v.some(i=>i.p===p)){pedAdd(cod,p,1);n++}
+    toast(n?`${n} item(ns) do kit no pedido — ajuste as quantidades na ficha`:'Ele já compra tudo do kit (ou já está no pedido)');ir('clientes');abrirFicha(cod)}});
+$('#tLojas').addEventListener('change',e=>{const t=e.target;if(t.dataset.ta!=='agendar'||!t.value)return;const cod=t.closest('[data-t]').dataset.t,c=IX.cli.get(cod),d=+t.value;
+  diaAg(semanaAtual(),d).itens.push({c:cod,modo:'pres',prosp:!!c.prospect,fixo:true});salvar('agenda');renderPerto();toast(`Colocado na Semana: ${DSEM[dow(d)]} ${fmtDia(d).slice(0,5)}`)});
+$('#tRamo').onchange=()=>{lsSet('rota_tRamo',$('#tRamo').value);renderPerto()};$('#tRaio').onchange=()=>{lsSet('rota_tRaio',$('#tRaio').value);renderPerto()};$('#tQuem').onchange=renderPerto;
+
 /* ===================== novo cliente (porta a porta) com pedido pronto ===================== */
 // quantidade típica de cada produto num pedido de lojas daquele tipo (mediana da quantidade por linha de venda)
 const QTIP=new Map();
@@ -1666,7 +1740,7 @@ function ir(v){vista=v;$$('#nav button').forEach(b=>b.classList.toggle('on',b.da
 $('#nav').onclick=e=>{const b=e.target.closest('button');if(b)ir(b.dataset.v)};
 function atualizarTudo(){
   $('#rca').textContent=S.config.codigoRCA?`RCA ${S.config.codigoRCA} · ${S.config.vendedor||''}`:'';
-  if(vista==='semana')renderSemana();if(vista==='clientes')renderLista();if(vista==='disparo')renderDisparo();if(vista==='acoes')renderAcoes();if(vista==='ganhos')renderGanhos();if(vista==='prosp')renderProsp();if(vista==='novo')renderNovo();if(vista==='catalogo')renderCatalogo();if(vista==='config')renderConfig();
+  if(vista==='semana')renderSemana();if(vista==='clientes')renderLista();if(vista==='disparo')renderDisparo();if(vista==='acoes')renderAcoes();if(vista==='ganhos')renderGanhos();if(vista==='prosp')renderProsp();if(vista==='perto')renderPerto();if(vista==='novo')renderNovo();if(vista==='catalogo')renderCatalogo();if(vista==='config')renderConfig();
   if(vista==='dados'){$('#fbBox').classList.toggle('hide',!FBAUTH)}if(vista==='dados')$('#contagens').innerHTML=[['Clientes',S.clientes.length],['Itens vendidos',S.vendas.length],['Produtos',S.catalogo.length],['Contatos registrados',S.contatos.length],['Ações ativas',IX.acoes.length]].map(([a,b])=>`<div class="kpi"><small>${a}</small><b>${b.toLocaleString('pt-BR')}</b></div>`).join('')}
 let tb;$('#busca').oninput=()=>{clearTimeout(tb);tb=setTimeout(renderLista,120)};
 $('#fStatus').onchange=renderLista;$('#fSeg').onchange=renderLista;$('#fPerfil').onchange=renderLista;$('#fCidade').onchange=renderLista;
