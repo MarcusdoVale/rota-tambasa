@@ -707,7 +707,7 @@ function renderLista(){
     <span class="small muted">${h(c.codigo)} · ${h(c.cidade||'—')} · últ. ${fmtDia(a.ult)}</span> ${c.prospect?'<span class="badge b-novo">🆕 prospect</span>':`<span class="badge b-${a.status.replace(' ','-')}">${a.status}</span>`}${presencial(c)?' <span class="badge b-pres">presencial</span>':''}${segEf(c)?` <span class="badge">${h(segEf(c))}${segSug(c)?' ?':''}</span>`:''}</div>`}).join('')}
 
 function abrirFicha(cod){
-  selCli=cod;const c=IX.cli.get(cod);if(!c)return;const a=analisar(cod),sug=sugestoes(cod),pres=presencial(c),ofs=ofertas(cod),ntL=c.naoTrab||[],mgF=topMinas(cod,8);
+  if(abertoRes&&abertoRes.c!==cod)abertoRes=null;selCli=cod;const c=IX.cli.get(cod);if(!c)return;const a=analisar(cod),sug=sugestoes(cod),pres=presencial(c),ofs=ofertas(cod),ntL=c.naoTrab||[],mgF=topMinas(cod,8);
   const msg=mensagem(c,a),zap=temZap(c)?linkZap(c.telefone,msg):null;
   const ks=S.contatos.filter(k=>k.cliente===cod).sort((x,y)=>y.dia-x.dia);
   const tabP=(lst,cols)=>`<div class="tw"><table><thead><tr>${cols.map(x=>`<th class="${x[2]||''}">${x[0]}</th>`).join('')}</tr></thead><tbody>${lst.map(x=>`<tr>${cols.map(k=>`<td class="${k[2]||''}">${k[1](x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -726,6 +726,7 @@ function abrirFicha(cod){
        ${zap?`<a class="btn zap" href="${h(zap)}" target="_blank" rel="noopener">WhatsApp</a>`:''}
        <button class="btn" data-reg="visita">+ Visita</button><button class="btn" data-reg="ligação">+ Ligação</button>
      </div></div>
+   <h3>Atendimento de hoje</h3><div id="fAt"></div>
    <div class="kpis">
      <div class="kpi"><small>Última compra</small><b>${fmtDia(a.ult)}</b><div class="small muted">${a.diasSem!=null?a.diasSem+' dias':''}</div></div>
      <div class="kpi"><small>Compra a cada</small><b>${a.freq?Math.round(a.freq)+' dias':'—'}</b></div>
@@ -768,6 +769,17 @@ function abrirFicha(cod){
   $$('#ficha [data-nts]').forEach(b=>b.onclick=()=>{const x=sug[+b.dataset.nts];marcarNaoTrab(cod,[{f:famKey(x.desc),txt:curta(x.desc)}]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')});
   $$('#ficha [data-ntm]').forEach(b=>b.onclick=()=>{const x=mgF[+b.dataset.ntm];marcarNaoTrab(cod,[{f:famKey(x.d),txt:curta(x.d)}]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')});
   $$('#ficha [data-unt]').forEach(b=>b.onclick=e=>{e.preventDefault();desmarcarNaoTrab(cod,+b.dataset.unt);abrirFicha(cod)});
+  // mesmo card da Semana: registra o atendimento do dia (fora de rota se ele não estava no plano)
+  const pl=diaPlanoDe(cod),dAt=pl.d,itAt=diaAg(segundaDe(dAt),dAt).itens.find(x=>x.c===cod)||{c:cod,modo:pl.modo,fora:true};
+  const pintaAt=()=>{$('#fAt').innerHTML=cardAt(itAt,dAt,true)};pintaAt();
+  $('#fAt').onclick=e=>{const b=e.target.closest('[data-a],[data-r]');if(!b||b.tagName==='SELECT')return;const card=b.closest('.at'),a=b.dataset.a;
+    if(b.dataset.r){abertoRes={c:cod,res:b.dataset.r};pintaAt();return}
+    if(a==='cancelar'){abertoRes=null;pintaAt();return}
+    if(a==='nt'){e.preventDefault();const o=ofertas(cod)[+b.dataset.i];if(o){marcarNaoTrab(cod,[ntDeOferta(o)]);abrirFicha(cod);toast('Não será mais oferecido a este cliente')}return}
+    if(a==='salvarRes')return salvarRes(card,dAt,()=>abrirFicha(cod))};
+  $('#fAt').onchange=e=>{const t=e.target,box=t.closest('.res');if(!box||t.dataset.f!=='motivo')return;
+    box.querySelector('[data-f="ntBox"]')?.classList.toggle('hide',t.value!=='Não trabalha com a linha');box.querySelector('[data-f="concBox"]')?.classList.toggle('hide',!t.value.startsWith('Preço'));
+    const r=box.querySelector('[data-f="retorno"]');if(r&&RET[t.value])r.value=isoDia(addUteis(Math.max(dAt,hojeDia()),RET[t.value]))};
   ligarPedido(cod);
   if($('#fZapOk'))$('#fZapOk').onclick=e=>{e.preventDefault();delete c.semZap;salvar('clientes');abrirFicha(cod);toast('Ok, volta a receber pelo WhatsApp')};
   $('#cpMsg').onclick=()=>copiar($('#fMsg').value);
@@ -775,7 +787,7 @@ function abrirFicha(cod){
   let t;$('#fNota').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{S.notas[cod]=e.target.value;salvar('notas');$('#fRot').value=roteiro(c)},500)};
   $$('[data-reg]').forEach(b=>b.onclick=async()=>{const obs=await modal({titulo:`Registrar ${b.dataset.reg}`,texto:'Observação (opcional)',campo:{},ok:'Registrar'});if(obs===null)return;registrar(cod,b.dataset.reg,obs);abrirFicha(cod)});
   if(innerWidth<=860)scrollTo(0,0)}
-function registrar(cod,tipo,obs){S.contatos.push({cliente:cod,dia:hojeDia(),tipo,obs:obs||''});IX.ultContato.set(cod,hojeDia());salvar('contatos')}
+function registrar(cod,tipo,obs){S.contatos.push({cliente:cod,dia:hojeDia(),em:Date.now(),tipo,obs:obs||''});IX.ultContato.set(cod,hojeDia());salvar('contatos')}
 
 /* ===================== tela: semana (planejamento + registro de atendimentos) ===================== */
 const ultRegistro=cod=>IX.ultReg.get(cod);
@@ -792,7 +804,8 @@ const MOT={nao_atendido:['Comprador ausente','Loja fechada','Não respondeu (tel
 // dias úteis até o retorno sugerido, por motivo
 const RET={'Comprador ausente':2,'Loja fechada':2,'Não respondeu (telefone/WhatsApp)':1,'Pediu para retornar outro dia':3,'Não deu tempo de atender':1,'Preço (concorrência mais barata)':15,'Estoque cheio':10,'Sem caixa / dinheiro':5,'Já comprou de outro fornecedor':10,'Produto em falta na Tambasa':5,'Não trabalha com a linha':40,'Prazo / condição de pagamento':5,'Outro':5};
 const RES_TXT={vendeu:'Vendeu',nao_vendeu:'Não vendeu',nao_atendido:'Não atendido'};
-const txtReg=k=>`${fmtDia(k.dia)} · <b>${h(k.res?RES_TXT[k.res]:k.tipo)}</b>${k.res?' ('+h(k.tipo)+')':''}${k.valor?' — '+brl(k.valor):''}${k.motivo?' — '+h(k.motivo):''}${k.conc?.produto?' — concorrente: '+h(k.conc.produto)+' a '+h(k.conc.preco):''}${k.obs?' — '+h(k.obs):''}`;
+const hhmm=t=>{const x=new Date(t);return String(x.getHours()).padStart(2,'0')+':'+String(x.getMinutes()).padStart(2,'0')};
+const txtReg=k=>`${fmtDia(k.dia)}${k.em?' '+hhmm(k.em):''} · ${k.foraRota?'<span class="badge b-esfriando">fora de rota</span> ':''}<b>${h(k.res?RES_TXT[k.res]:k.tipo)}</b>${k.res?' ('+h(k.tipo)+')':''}${k.valor?' — '+brl(k.valor):''}${k.motivo?' — '+h(k.motivo):''}${k.conc?.produto?' — concorrente: '+h(k.conc.produto)+' a '+h(k.conc.preco):''}${k.obs?' — '+h(k.obs):''}`;
 let cidSel='',cidSelP='',semSel=null,diaSel=null,abertoRes=null,modoSel=(()=>{try{return localStorage.getItem('rota_modo')||'pres'}catch(e){return 'pres'}})();
 function semanaAtual(){const h0=hojeDia();return util(h0)?segundaDe(h0):segundaDe(h0)+7}
 function agendaSem(seg){return S.agenda[seg]||(S.agenda[seg]={dias:{}})}
@@ -901,21 +914,21 @@ function topMinas(cod,max=5){const L=S.topmg||[],res=[];if(!L.length)return res;
 // preço do item do Top Minas: encarte (oferta vigente) > catálogo > preço montado na planilha (site/último pago)
 const precoMG=x=>/^encarte/.test(x.fonte||'')&&x.preco?{v:x.preco,f:'encarte'}:pPreco(x.p)?{v:pPreco(x.p),f:''}:x.preco?{v:x.preco,f:x.fonte||''}:null;
 const selMG=p=>{const x=topMG().get(p);return x?` <span class="badge b-mg" title="${x.pos}º mais vendido da Tambasa em Minas">🏆 ${x.pos}º MG</span>`:''};
-function cardAt(x,d){
+function cardAt(x,d,naFicha){
   const c=IX.cli.get(x.c);if(!c)return '';const a=analisar(c.codigo),r=regDoDia(c.codigo,d),p=prioridade(c),u=ultRegistro(c.codigo);
   const rep=!a.produtos.length?topSegmento(segEf(c),3,naoTrab(c.codigo).f).map(z=>curta(z.d)):a.repor.slice(0,3).map(z=>curta(z.desc)),ac=ofertas(c.codigo).slice(0,3),mg=topMinas(c.codigo,2).filter(z=>!ac.some(o=>o.item.p===z.p)),lv=presencial(c)?[]:listaVenda(c.codigo,5);
   const zap=temZap(c)?linkZap(c.telefone,mensagem(c,a)):null,tel=linkTel(c.telefone),cls=r?{vendeu:'feito',nao_vendeu:'perdeu',nao_atendido:'ausente'}[r.res]:'';
-  const outros=[0,1,2,3,4].map(i=>semSel+i).filter(z=>z!==d&&!diaAg(semSel,z).off);
+  const outros=naFicha?[]:[0,1,2,3,4].map(i=>semSel+i).filter(z=>z!==d&&!diaAg(semSel,z).off);
   return `<div class="at ${cls}" data-c="${h(c.codigo)}">
-   <div class="row" style="align-items:flex-start"><div style="flex:3 1 240px"><b>${h(c.fantasia||c.nome)}</b> ${r?(r.res==='nao_atendido'?'<span class="badge b-esfriando">⏳ não atendido</span>':'<span class="badge b-ativo">✅ atendido</span>'):''} ${x.ret?'<span class="badge b-esfriando">retorno</span>':''} ${c.prospect?`<span class="badge b-novo">🆕 prospect · ${h(segEf(c)||'loja')}</span>`:`<span class="badge b-${a.status.replace(' ','-')}">${a.status}</span>`}
+   <div class="row" style="align-items:flex-start"><div style="flex:3 1 240px"><b>${h(c.fantasia||c.nome)}</b> ${r?(r.res==='nao_atendido'?'<span class="badge b-esfriando">⏳ não atendido</span>':'<span class="badge b-ativo">✅ atendido</span>'):''} ${x.ret?'<span class="badge b-esfriando">retorno</span>':''} ${x.fora?'<span class="badge b-esfriando">fora de rota</span>':''} ${c.prospect?`<span class="badge b-novo">🆕 prospect · ${h(segEf(c)||'loja')}</span>`:`<span class="badge b-${a.status.replace(' ','-')}">${a.status}</span>`}
     <div class="small muted">${h(c.codigo)} · ${h([c.bairro,c.cidade].filter(Boolean).join(' — '))} · ${h(c.telefone||'sem telefone')}${c.contato?' · falar com '+h(c.contato):''}</div>
     <div class="small">${c.prospect?'Ainda não compra da Tambasa: apresente a empresa, deixe seu contato e pegue o nome do comprador. Chamex paga R$ 30 por cliente novo.':h(p.motivo.join('; ')||'manter relacionamento')}</div>
     ${u&&u!==r?`<div class="small muted">Último registro: ${txtReg(u)}</div>`:''}</div>
-    <div class="row" style="flex:1 1 170px;justify-content:flex-end"><button class="btn sm" data-a="ficha">Ficha</button><button class="btn sm" data-a="pedido">🛒 Pedido</button>${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a><button class="btn sm" data-cp="${h(endCli(c))}" title="Copiar endereço (para colar no mapa offline)">📋 Endereço</button>`:''}${zap?`<a class="btn sm zap" href="${h(zap)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}</div></div>
+    <div class="row" style="flex:1 1 170px;justify-content:flex-end">${naFicha?'':'<button class="btn sm" data-a="ficha">Ficha</button><button class="btn sm" data-a="pedido">🛒 Pedido</button>'}${c.endereco?`<a class="btn sm" href="${h(mapaCli(c))}" target="_blank" rel="noopener">📍 Mapa</a><button class="btn sm" data-cp="${h(endCli(c))}" title="Copiar endereço (para colar no mapa offline)">📋 Endereço</button>`:''}${zap?`<a class="btn sm zap" href="${h(zap)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${tel?`<a class="btn sm" href="${h(tel)}">Ligar</a>`:''}</div></div>
    ${lv.length?`<div class="ofr" style="border-color:var(--ok)">💰 <b>Pra vender (com preço):</b> ${lv.map(z=>`${h(curta(z.d))} <b>${h(z.txt)}</b> <span class="muted small">(${TIPO_LV[z.tipo]})</span>`).join(' · ')}</div>`:''}
    ${rep.length||ac.length||mg.length?`<div class="ofr">${rep.length?`${!a.produtos.length?'Levar (mais vendidos do segmento)':'Repor'}: ${h(rep.join(', '))}<br>`:''}${ac.length?`Ações: ${ac.map((o,i)=>`<b>${h(curta(o.item.d))}</b> <span class="muted">(${h(premioTxt(o))})</span> <a href="#" data-a="nt" data-i="${i}" class="small" title="Ele não trabalha com isso — não oferecer mais" style="color:var(--muted)">✕</a>`).join(' · ')}`:''}${mg.length?`${ac.length?'<br>':''}🏆 Top Minas que ele não compra: ${mg.map(z=>`<b>${h(curta(z.d))}</b> <span class="muted">(${z.pos}º)</span>`).join(' · ')}`:''}</div>`:''}
    ${abertoRes?.c===c.codigo?'':`<div class="row" style="justify-content:flex-start;margin-top:8px">${[['vendeu','✓ Vendeu','ok'],['nao_vendeu','Não vendeu','warn'],['nao_atendido','Não atendido','bad']].map(([k,t,cor])=>`<button class="btn sm${r?.res===k?' esc-'+k:''}" data-r="${k}" style="color:var(--${cor})"${r?.res===k?' title="Escolhido — clique para alterar os detalhes"':''}>${r?.res===k&&k!=='vendeu'?'✓ ':''}${t}</button>`).join('')}
-     ${r?'':`<select data-a="mover" style="width:auto;max-width:170px;padding:4px 6px;font-size:13px"><option value="">Mover para…</option>${outros.map(z=>`<option value="${z}">${DSEM[dow(z)]} ${fmtDia(z).slice(0,5)}</option>`).join('')}<option value="x">Tirar da semana</option></select>`}</div>
+     ${r||naFicha?'':`<select data-a="mover" style="width:auto;max-width:170px;padding:4px 6px;font-size:13px"><option value="">Mover para…</option>${outros.map(z=>`<option value="${z}">${DSEM[dow(z)]} ${fmtDia(z).slice(0,5)}</option>`).join('')}<option value="x">Tirar da semana</option></select>`}</div>
      ${r?`<div class="small" style="margin-top:6px">${txtReg(r)}${r.retorno!=null?` · <b>retornar ${DSEM[dow(r.retorno)]} ${fmtDia(r.retorno).slice(0,5)}</b>`:''}</div>`:''}`}
    ${abertoRes?.c===c.codigo?formRes(c,d,abertoRes.res,r):''}</div>`}
 
@@ -932,10 +945,13 @@ function formRes(c,d,res,r){
    <label>Retornar em ${res==='vendeu'?'(opcional — sem data, o app usa o ritmo de compra dele)':'(sugerido pelo motivo — pode mudar)'}</label><input data-f="retorno" type="date" value="${ret!=null?isoDia(ret):''}">
    <div class="row" style="justify-content:flex-start"><button class="btn sm pri" data-a="salvarRes">Salvar</button><button class="btn sm" data-a="cancelar">Cancelar</button></div></div>`}
 
-function salvarRes(card,d){
-  const cod=card.dataset.c,box=card.querySelector('.res'),res=box.dataset.res,f=k=>box.querySelector(`[data-f="${k}"]`),hoje=hojeDia();
-  const it=diaAg(semSel,d).itens.find(x=>x.c===cod);
-  const reg={cliente:cod,dia:Math.min(d,hoje),plano:d,tipo:it?.modo==='rem'?'remoto':'visita',res,obs:f('obs').value.trim()};
+function salvarRes(card,d,depois){
+  const cod=card.dataset.c,box=card.querySelector('.res'),res=box.dataset.res,f=k=>box.querySelector(`[data-f="${k}"]`),hoje=hojeDia(),sem=segundaDe(d);
+  let it=diaAg(sem,d).itens.find(x=>x.c===cod);const ant=regDoDia(cod,d);
+  // atendido fora do plano do dia (aberto pela aba Clientes): entra no dia como "fora de rota"
+  if(!it){it={c:cod,modo:presencial(IX.cli.get(cod))?'pres':'rem',fora:true,fixo:true};diaAg(sem,d).itens.push(it);salvar('agenda')}
+  const reg={cliente:cod,dia:Math.min(d,hoje),plano:d,em:ant?.em||Date.now(),tipo:it.modo==='rem'?'remoto':'visita',res,obs:f('obs').value.trim()};
+  if(it.fora)reg.foraRota=true;
   if(res==='vendeu'){reg.valor=num(f('valor').value);reg.acoes=[...box.querySelectorAll('[data-f="ac"]:checked')].map(e=>e.value)}
   else{reg.motivo=f('motivo').value;
     if(reg.motivo==='Não trabalha com a linha'){const o=ofertas(cod),sel=[...box.querySelectorAll('[data-f="nt"]:checked')].map(e=>o[+e.value]).filter(Boolean);
@@ -944,10 +960,11 @@ function salvarRes(card,d){
   S.contatos=S.contatos.filter(k=>!(k.cliente===cod&&k.res&&(k.plano??k.dia)===d));S.contatos.push(reg);salvar('contatos');
   IX.ultContato.set(cod,Math.max(IX.ultContato.get(cod)??-1,reg.dia));IX.ultReg.set(cod,reg);IX.ofertas.delete(cod);CACHE.delete(cod);
   // retorno nesta semana (já montada): coloca o cliente no dia
-  if(reg.retorno!=null&&reg.retorno>d&&segundaDe(reg.retorno)===semSel){const g=diaAg(semSel,reg.retorno);
+  if(reg.retorno!=null&&reg.retorno>d&&segundaDe(reg.retorno)===sem){const g=diaAg(sem,reg.retorno);
     if(!g.off&&!g.itens.some(x=>x.c===cod)){g.itens.push({c:cod,modo:it?.modo||(presencial(IX.cli.get(cod))?'pres':'rem'),ret:true,fixo:true});salvar('agenda')}}
-  if(res==='vendeu'&&converterProsp(cod)){abertoRes=null;renderSemana();toast('Venda registrada — a loja virou cliente e já está na base');return}
-  abertoRes=null;renderSemana();toast('Atendimento registrado')}
+  const fim=depois||renderSemana;
+  if(res==='vendeu'&&converterProsp(cod)){abertoRes=null;fim();toast('Venda registrada — a loja virou cliente e já está na base');return}
+  abertoRes=null;fim();toast(reg.foraRota?'Atendimento registrado (fora de rota)':'Atendimento registrado')}
 
 function renderDia(){
   const d=diaSel,g=diaAg(semSel,d);
