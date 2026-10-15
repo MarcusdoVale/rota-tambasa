@@ -1279,7 +1279,7 @@ function ligarVisibilidade(){
   const flush=()=>{if(!NUVEM)return;clearTimeout(tPush);FILA=FILA.then(push).catch(()=>{})};
   addEventListener('pagehide',flush);
   document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='hidden')return flush();if(!NUVEM||Date.now()-PUXADO<20000)return;
-    try{clearTimeout(tPush);await(FILA=FILA.then(push));if(await puxar()){CACHE.clear();indexar();atualizarTudo()}}catch(e){}})}
+    try{clearTimeout(tPush);await FILA;if(await puxar()){CACHE.clear();indexar();atualizarTudo()}await(FILA=FILA.then(push))}catch(e){}})}
 
 /* ===================== app instalável: Firebase (login Google + dados sincronizados + offline) ===================== */
 // A base (clientes, vendas, catálogo, ações, prospects) fica em base/* compactada; o que você faz fica em users/<você>/estado/*.
