@@ -507,7 +507,9 @@ function indexar(){
   const segs=[...new Set(SEGS.concat(S.clientes.map(c=>c.segmento).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
   const perfis=[...new Set(S.clientes.map(c=>c.perfil).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const optSeg='<option value="">Todos segmentos</option><option value="__sug">(sugeridos, a confirmar)</option><option value="__sem">(sem segmento)</option>'+segs.map(x=>`<option>${h(x)}</option>`).join('');
-  for(const id of ['#fSeg','#dSeg']){const v=$(id).value;$(id).innerHTML=optSeg;$(id).value=v}
+  // ramos da aba Perto de casa (oficina, torno, lava-jato, polimento): casam pelo nome/segmento/categorias da loja
+  let optRamo='';try{optRamo='<optgroup label="Ramos (como em Perto de casa)">'+Object.entries(RAMOS).map(([k,r])=>`<option value="__ramo:${k}">${h(r.nome)}</option>`).join('')+'</optgroup>'}catch(e){}
+  for(const id of ['#fSeg','#dSeg']){const v=$(id).value;$(id).innerHTML=id==='#fSeg'?optSeg.replace('</option><option value="__sug">','</option>'+optRamo+'<option value="__sug">'):optSeg;$(id).value=v}
   {const v=$('#fPerfil').value;$('#fPerfil').innerHTML='<option value="">Todos perfis de compra</option>'+perfis.map(x=>`<option>${h(x)}</option>`).join('');$('#fPerfil').value=v}
   $('#fCidade').innerHTML='<option value="">Todas as cidades / localidades</option><option value="__pres">Só presenciais</option><option value="__rem">Só remotos</option>'+cids.map(c=>`<option>${h(c)} (${S.clientes.filter(x=>localidade(x)===c).length})</option>`.replace('<option>','<option value="'+h(c)+'">')).join('');
   const cats=[...new Set(S.catalogo.map(p=>p.categoria).filter(Boolean))].sort();
@@ -699,7 +701,7 @@ function renderLista(){
   if(q){const qd=q.replace(/\D/g,'');arr=arr.filter(c=>norm(c.nome+' '+(c.fantasia||'')+' '+c.codigo+' '+(c.cidade||'')+' '+(c.contato||'')).includes(q)||(qd.length>=4&&str(c.telefone).replace(/\D/g,'').includes(qd)))}
   if(cd==='__pres')arr=arr.filter(presencial);else if(cd==='__rem')arr=arr.filter(c=>!presencial(c));else if(cd)arr=arr.filter(c=>localidade(c)===cd);
   const sg=$('#fSeg').value,pf=$('#fPerfil').value;
-  if(sg)arr=arr.filter(c=>sg==='__sem'?!segEf(c):sg==='__sug'?segSug(c):segEf(c)===sg);if(pf)arr=arr.filter(c=>c.perfil===pf);
+  if(sg)arr=arr.filter(c=>sg.startsWith('__ramo:')?ramoDe(c).includes(sg.slice(7)):sg==='__sem'?!segEf(c):sg==='__sug'?segSug(c):segEf(c)===sg);if(pf)arr=arr.filter(c=>c.perfil===pf);
   if(st==='__prosp')arr=arr.filter(c=>c.prospect);else if(st)arr=arr.filter(c=>analisar(c.codigo).status===st);
   const tot=arr.length;arr=arr.slice(0,300);
   $('#listaCli').innerHTML=(tot?`<div class="muted small" style="padding:0 4px 6px">${tot} cliente(s)${tot>300?' — mostrando 300, refine a busca':''}</div>`:'<div class="vazio">Nenhum cliente. Importe dados na aba <b>Dados</b>.</div>')+
