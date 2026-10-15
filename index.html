@@ -1060,7 +1060,12 @@ const endCli=c=>[c.endereco,c.bairro,c.cidade?c.cidade+' - '+(c.uf||'MG'):''].fi
 // botão 📋 Endereço: copia o endereço para colar no app de mapa offline
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-cp]');if(!b)return;e.preventDefault();e.stopPropagation();const t=b.dataset.cp;
   try{await navigator.clipboard.writeText(t);toast('Endereço copiado: '+t)}catch(err){prompt('Copie o endereço:',t)}},true);
-const mapaCli=c=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(endCli(c));
+const mapaCli=c=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(endCli(c))+'&om='+encodeURIComponent((BAIRRO_XY[nbairro(c.bairro)]||'').toString());
+// no Android, 📍 Mapa abre o Organic Maps (busca offline perto do bairro); sem o app instalado, cai no Google Maps
+const ANDROID=/Android/i.test(navigator.userAgent);
+document.addEventListener('click',e=>{const a=e.target.closest('a[href^="https://www.google.com/maps/search/"]');if(!a||!ANDROID)return;
+  const u=new URL(a.href),q=u.searchParams.get('query'),xy=u.searchParams.get('om');e.preventDefault();e.stopPropagation();
+  location.href='intent://search?query='+encodeURIComponent(q)+(xy?'&cll='+xy:'')+'#Intent;scheme=om;package=app.organicmaps;S.browser_fallback_url='+encodeURIComponent(a.href)+';end'},true);
 // Google Maps aceita até 9 paradas por link; a última parte termina em casa
 function linksRota(lista){const ends=lista.map(x=>IX.cli.get(x.c)).filter(c=>c&&c.endereco).map(endCli),L=[];
   for(let i=0;i<ends.length;i+=9){const parte=ends.slice(i,i+9),ultima=i+9>=ends.length,dest=ultima&&casaEnd()?casaEnd():parte.pop();
