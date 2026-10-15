@@ -1242,12 +1242,22 @@ async function push(){if(!NUVEM)return;const D=docsLocais(),col=COL;let erro=nul
   if(erro)toast(erro.code==='quota_exceeded'?'Espaço da nuvem cheio: salve um backup em Dados':'Não consegui salvar na nuvem; tento de novo na próxima alteração')}
 async function puxar(){const snap=await NUVEM.collection(COL).get();PUXADO=Date.now();if(snap.empty)return false;
   const D={};for(const d of snap.docs)D[d.id]=JSON.parse(JSON.stringify(d.data()));ULTIMO={};for(const id in D)ULTIMO[id]=JSON.stringify(D[id]);
+  // junta com o que está neste aparelho (nunca descarta o que ainda não subiu: atendimento salvo e app fechado antes do envio)
+  const locK=S.contatos||[],locN=S.notas||{},locA=S.agenda||{},locNv=S.novos||[];
   if(D.config){S.config={...CFG0,...D.config.v};migrarModelos()}if(D.notas)S.notas=D.notas.v||{};
-  S.contatos=Object.keys(D).filter(i=>i.startsWith('contatos-')).flatMap(i=>D[i].v||[]);
+  for(const k in locN)if(locN[k]&&!S.notas[k])S.notas[k]=locN[k];
+  const chK=k=>k.res?`r|${k.cliente}|${k.plano??k.dia}`:`t|${k.cliente}|${k.dia}|${k.tipo}|${k.obs||''}|${k.em||''}`,mk=new Map();
+  for(const k of Object.keys(D).filter(i=>i.startsWith('contatos-')).flatMap(i=>D[i].v||[]))mk.set(chK(k),k);
+  for(const k of locK){const c=chK(k),n=mk.get(c);if(!n||(k.res&&k.em&&k.em>=(n.em||0)))mk.set(c,k)}
+  S.contatos=[...mk.values()];
   S.agenda={};for(const i in D)if(i.startsWith('agenda-'))S.agenda[i.slice(7)]=D[i].v;
-  if(D.novos){const loc=new Map((S.novos||[]).map(n=>[n.codigo,n]));S.novos=(D.novos.v||[]).map(n=>Object.assign(loc.get(n.codigo)||{},n));S.clientes=S.clientes.filter(c=>!c.manual);await salvarLocal('novos')}
+  for(const w in locA)for(const d in locA[w]?.dias||{})for(const it of locA[w].dias[d].itens||[])if(it.fora){const A=S.agenda[w]||(S.agenda[w]={dias:{}}),g=A.dias[d]||(A.dias[d]={off:false,itens:[]});if(!g.itens.some(x=>x.c===it.c))g.itens.push(it)}
+  if(D.novos){const loc=new Map(locNv.map(n=>[n.codigo,n])),nv=D.novos.v||[];S.novos=nv.map(n=>Object.assign(loc.get(n.codigo)||{},n)).concat(locNv.filter(n=>!nv.some(x=>x.codigo===n.codigo)));S.clientes=S.clientes.filter(c=>!c.manual);await salvarLocal('novos')}
   EDPEND=D['clientes-edit']?.v||{};aplicarEdicoes(EDPEND);
-  for(const k of ['config','notas','contatos','agenda','clientes'])await salvarLocal(k);return true}
+  for(const k of ['config','notas','contatos','agenda','clientes'])await salvarLocal(k);
+  // sobrou algo deste aparelho que a nuvem não tem? envia já
+  if(Object.entries(docsLocais()).some(([id,b])=>ULTIMO[id]!==JSON.stringify(b)))agendarPush();
+  return true}
 async function carregarEstaticos(){let ver=null;try{ver=await fetch('data/versao.json',{cache:'no-store'}).then(r=>r.ok?r.json():null)}catch(e){}
   if(!ver)return false;let local=null;try{local=await carregar('versao')}catch(e){}
   if(local===ver.v&&S.clientes.length&&S.vendas.length)return false;
@@ -1265,7 +1275,10 @@ async function iniciarNuvem(){if(window.FIREBASE_CONFIG&&window.firebase)return 
   else statusNuvem('⚠️ sem nuvem — salvando só neste aparelho');
   CACHE.clear();indexar();atualizarTudo();ligarVisibilidade()}
 function ligarVisibilidade(){
-  document.addEventListener('visibilitychange',async()=>{if(document.visibilityState!=='visible'||!NUVEM||Date.now()-PUXADO<20000)return;
+  // saiu do app (trocou de app, bloqueou a tela, fechou): envia na hora, sem esperar
+  const flush=()=>{if(!NUVEM)return;clearTimeout(tPush);FILA=FILA.then(push).catch(()=>{})};
+  addEventListener('pagehide',flush);
+  document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='hidden')return flush();if(!NUVEM||Date.now()-PUXADO<20000)return;
     try{clearTimeout(tPush);await(FILA=FILA.then(push));if(await puxar()){CACHE.clear();indexar();atualizarTudo()}}catch(e){}})}
 
 /* ===================== app instalável: Firebase (login Google + dados sincronizados + offline) ===================== */
