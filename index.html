@@ -749,9 +749,9 @@ function abrirFicha(cod){
    <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn sm" id="cpMsg">Copiar mensagem</button></div>
    <h3>Anotações do cliente</h3>
    <textarea id="fNota" rows="3" placeholder="Ex.: prefere entrega na terça; compra tinta só da marca X; filho do dono é quem decide…">${h(S.notas[cod]||'')}</textarea>
-   <h3>Roteiro de atendimento (prompt)</h3>
-   <textarea class="roteiro" id="fRot" readonly>${h(roteiro(c))}</textarea>
-   <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn sm pri" id="cpRot">Copiar roteiro</button></div>
+   <details style="margin-top:14px"><summary class="btn sm" style="display:inline-block">📄 Roteiro de atendimento (prompt) — abrir</summary>
+   <textarea class="roteiro" id="fRot" readonly style="margin-top:8px">${h(roteiro(c))}</textarea>
+   <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn sm pri" id="cpRot">Copiar roteiro</button></div></details>
    <h3>Contatos registrados</h3>
    ${ks.length?ks.slice(0,15).map(k=>`<div class="small">${txtReg(k)}</div>`).join(''):'<div class="muted small">Nenhum.</div>'}
    <h3>Últimos pedidos</h3>
